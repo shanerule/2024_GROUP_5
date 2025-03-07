@@ -129,6 +129,7 @@ void MainWindow::on_actionOpen_File_triggered() {
     emit statusUpdateMessage(QString("Open File action triggered"), 0);
 }
 
+// Implement only this for select multiple
 void MainWindow::openFile() {
     // Open a file dialog to select multiple files
     QStringList fileNames = QFileDialog::getOpenFileNames(
