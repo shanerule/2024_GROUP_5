@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     // Connect button signal to slot
-    connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::handleButton); 
+    connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::handleButton);
     connect(ui->treeView, &QTreeView::clicked, this, &MainWindow::handleTreeClicked);
     connect(ui->actionOpen_File, &QAction::triggered, this, &MainWindow::openFile);
     connect(ui->treeView, &QWidget::customContextMenuRequested, this, &MainWindow::showTreeContextMenu);
@@ -86,8 +86,9 @@ MainWindow::MainWindow(QWidget *parent)
     // Create a root item
     ModelPart *rootItem = this->partList->getRootItem();
 
-    // Add 1 top level items
-    QString name = QString("Model ").arg(1);
+    // Add 3 top-level items
+    
+    QString name = QString("Model %1").arg(1);
     QString visible("true");
 
     // Create child item
