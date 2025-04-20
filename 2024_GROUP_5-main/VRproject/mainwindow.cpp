@@ -203,6 +203,8 @@ void MainWindow::on_actionItemOptions_triggered() {
         selectedPart->setName(name);
         selectedPart->setColor(QColor(r, g, b));
         selectedPart->setVisible(visible);
+
+        //renderWindow->Render();
         //selectedPart->set(1, visible ? "true" : "false"); // Store visibility text
 
         // Refresh the UI
@@ -226,6 +228,7 @@ void MainWindow::on_actionItemOptions_triggered() {
         ui->treeView->update();
         ui->treeView->viewport()->update();
 
+        renderWindow->Render();
 
         //emit statusUpdateMessage("Item Options Selected", 0);
 

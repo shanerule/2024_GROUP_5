@@ -10,12 +10,12 @@
 #ifndef VIEWER_MODELPART_H
 #define VIEWER_MODELPART_H
 
+#pragma once
 #include <QString>
 #include <QList>
 #include <QVariant>
 #include <QColor>
 #include <QBrush>
-
 
   /* VTK headers - will be needed when VTK used in next worksheet,
    * commented out for now

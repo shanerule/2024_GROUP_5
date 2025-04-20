@@ -23,6 +23,8 @@
 ModelPart::ModelPart(const QList<QVariant>& data, ModelPart* parent )
     : m_itemData(data), m_parentItem(parent) {
 
+    partColor = QColor(255, 255, 255);
+
     /* You probably want to give the item a default colour */
 }
 
@@ -127,12 +129,19 @@ int ModelPart::row() const {
     return 0;
 }
 
-void ModelPart::setColor(const QColor &color) {
+/*void ModelPart::setColor(const QColor& color) {
     partColor = color;
     qDebug() << "setColor() called with RGB: " << partColor.red() << partColor.green() << partColor.blue();
+}*/ 
+
+void ModelPart::setColor(const QColor& color) {
+    partColor = color;
+    qDebug() << "setColor() called with RGB: " << partColor.red() << partColor.green() << partColor.blue();
+
+    if (actor) {
+        actor->GetProperty()->SetColor(partColor.redF(), partColor.greenF(), partColor.blueF());
+    }
 }
-
-
 
 
 
@@ -155,8 +164,31 @@ QColor ModelPart::color() const {
 
 void ModelPart::setVisible(bool visible) {
     /* This is a placeholder function that you will need to modify if you want to use it */
+    //isVisible = visible;
+    //set(1, visible ? "true" : "false");    /* As the name suggests ... */
+
+    //if (actor) {
+        //actor->SetVisibility(visible ? 1 : 0);
+    //}
+
+    /*isVisible = visible;
+    set(1, visible ? "true" : "false");
+
+    if (actor) {
+        actor->SetVisibility(visible ? 1 : 0);
+    }*/
+
     isVisible = visible;
-    set(1, visible ? "true" : "false");    /* As the name suggests ... */
+    set(1, visible ? "true" : "false");
+
+    if (actor) {
+        actor->SetVisibility(visible ? 1 : 0);
+        qDebug() << "Actor visibility set to" << visible;
+    }
+    else {
+        qDebug() << "Actor is null!";
+    }
+
 }
 
 bool ModelPart::Visible() const{
@@ -178,7 +210,9 @@ void ModelPart::loadSTL(QString fileName) {
     mapper->SetInputConnection(reader->GetOutputPort());
 
     // Create an actor and link it to the mapper
-    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    //vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    actor = vtkSmartPointer<vtkActor>::New();
+
     actor->SetMapper(mapper);
 
     // Store the VTK objects in the ModelPart
