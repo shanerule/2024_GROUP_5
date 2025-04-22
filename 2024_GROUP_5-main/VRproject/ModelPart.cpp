@@ -11,16 +11,16 @@
 #include <QDebug>
 
 
-/* Commented out for now, will be uncommented later when you have
- * installed the VTK library
- */
+  /* Commented out for now, will be uncommented later when you have
+   * installed the VTK library
+   */
 #include <vtkSmartPointer.h>
 #include <vtkDataSetMapper.h>
 #include <vtkProperty.h>
 #include <vtkPolyDataMapper.h>
 
 
-ModelPart::ModelPart(const QList<QVariant>& data, ModelPart* parent )
+ModelPart::ModelPart(const QList<QVariant>& data, ModelPart* parent)
     : m_itemData(data), m_parentItem(parent) {
 
     partColor = QColor(255, 255, 255);
@@ -48,7 +48,7 @@ ModelPart::~ModelPart() {
 
 
 
-void ModelPart::appendChild( ModelPart* item ) {
+void ModelPart::appendChild(ModelPart* item) {
     /* Add another model part as a child of this part
      * (it will appear as a sub-branch in the treeview)
      */
@@ -57,7 +57,7 @@ void ModelPart::appendChild( ModelPart* item ) {
 }
 
 
-ModelPart* ModelPart::child( int row ) {
+ModelPart* ModelPart::child(int row) {
     /* Return pointer to child item in row below this item.
      */
     if (row < 0 || row >= m_childItems.size())
@@ -106,7 +106,7 @@ QVariant ModelPart::data(int column, int role) const {
 
 
 
-void ModelPart::set(int column, const QVariant &value) {
+void ModelPart::set(int column, const QVariant& value) {
     /* Set the data associated with a column of this item
      */
     if (column < 0 || column >= m_itemData.size())
@@ -132,23 +132,31 @@ int ModelPart::row() const {
 /*void ModelPart::setColor(const QColor& color) {
     partColor = color;
     qDebug() << "setColor() called with RGB: " << partColor.red() << partColor.green() << partColor.blue();
-}*/ 
+}*/
+
+
+QColor ModelPart::getColor() const {
+    return partColor;
+}
 
 void ModelPart::setColor(const QColor& color) {
     partColor = color;
-    qDebug() << "setColor() called with RGB: " << partColor.red() << partColor.green() << partColor.blue();
+    //qDebug() << "setColor() called with RGB: " << partColor.red() << partColor.green() << partColor.blue();
 
+    //if (actor) {
+        //actor->GetProperty()->SetColor(partColor.redF(), partColor.greenF(), partColor.blueF());
+    //}
     if (actor) {
-        actor->GetProperty()->SetColor(partColor.redF(), partColor.greenF(), partColor.blueF());
+        actor->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
     }
 }
 
 
 
 
-unsigned char ModelPart::getColourR() const { return partColor.red(); }
-unsigned char ModelPart::getColourG() const { return partColor.green(); }
-unsigned char ModelPart::getColourB() const { return partColor.blue(); }
+//unsigned char ModelPart::getColourR() const { return partColor.red(); }
+//unsigned char ModelPart::getColourG() const { return partColor.green(); }
+//unsigned char ModelPart::getColourB() const { return partColor.blue(); }
 
 void ModelPart::setName(const QString& newName) {
     set(0, newName);
@@ -157,10 +165,9 @@ void ModelPart::setName(const QString& newName) {
 
 
 
-QColor ModelPart::color() const {
-    return partColor;
-}
-
+//QColor ModelPart::getcolor() const {
+    //return partColor;
+//}
 
 void ModelPart::setVisible(bool visible) {
     /* This is a placeholder function that you will need to modify if you want to use it */
@@ -191,7 +198,7 @@ void ModelPart::setVisible(bool visible) {
 
 }
 
-bool ModelPart::Visible() const{
+bool ModelPart::Visible() const {
     /* This is a placeholder function that you will need to modify if you want to use it */
     return isVisible;
     //return data(1).toString() == "true";
@@ -224,7 +231,7 @@ void ModelPart::loadSTL(QString fileName) {
     actor->GetProperty()->SetColor(1.0, 0.0, 0.0); // Red color
 }
 
-vtkSmartPointer<vtkActor> ModelPart::getActor() const{
+vtkSmartPointer<vtkActor> ModelPart::getActor() const {
     return actor;
 }
 
@@ -237,20 +244,20 @@ vtkSmartPointer<vtkActor> ModelPart::getActor() const{
      * of this function. */
 
 
-/* 1. Create new mapper */
+     /* 1. Create new mapper */
 
-/* 2. Create new actor and link to mapper */
+     /* 2. Create new actor and link to mapper */
 
-/* 3. Link the vtkProperties of the original actor to the new actor. This means
-      *    if you change properties of the original part (colour, position, etc), the
-      *    changes will be reflected in the GUI AND VR rendering.
-      *
-      *    See the vtkActor documentation, particularly the GetProperty() and SetProperty()
-      *    functions.
-      */
+     /* 3. Link the vtkProperties of the original actor to the new actor. This means
+           *    if you change properties of the original part (colour, position, etc), the
+           *    changes will be reflected in the GUI AND VR rendering.
+           *
+           *    See the vtkActor documentation, particularly the GetProperty() and SetProperty()
+           *    functions.
+           */
 
 
-/* The new vtkActor pointer must be returned here */
-//    return nullptr;
+           /* The new vtkActor pointer must be returned here */
+           //    return nullptr;
 
-//}
+           //}

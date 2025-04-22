@@ -56,7 +56,7 @@ public:
       */
     ModelPart* child(int row);
 
-    /** Return number of children to this item 
+    /** Return number of children to this item
       * @return number of children
       */
     int childCount() const;         /* Note on the 'const' keyword - it means that this function is valid for
@@ -100,11 +100,13 @@ public:
       * (0-255 RGB values as ints)
       */
       //void setColour(unsigned char R, unsigned char G, unsigned char B);  // ✅ Corrected
-    void setColor(const QColor& color);
-    unsigned char getColourR() const;
-    unsigned char getColourG() const;
-    unsigned char getColourB() const;
+    //void setColor(const QColor& color);
+    //unsigned char getColourR() const;
+    //unsigned char getColourG() const;
+    //unsigned char getColourB() const;
 
+    QColor getColor() const;
+    void setColor(const QColor& color);
 
 
     /** Set visible flag
@@ -130,7 +132,7 @@ public:
         */
         //vtkActor* getNewActor();
 
-    QColor color() const;
+    //QColor color() const;
     void setName(const QString& newName);
     vtkSmartPointer<vtkActor> getActor() const;
     void removeChild(int row);
@@ -140,6 +142,7 @@ private:
     QList<QVariant>                             m_itemData;         /**< List (array of column data for item */
     ModelPart* m_parentItem;       /**< Pointer to parent */
     QColor partColor;
+    QColor color; 
     QVector<QVariant> data_;
     unsigned char colorR, colorG, colorB;
 

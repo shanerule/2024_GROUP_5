@@ -20,14 +20,14 @@
 
 
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 
     // Connect button signal to slot
-    connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::handleButton); 
+    connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::handleButton);
     connect(ui->treeView, &QTreeView::clicked, this, &MainWindow::handleTreeClicked);
     connect(ui->actionOpen_File, &QAction::triggered, this, &MainWindow::openFile);
     connect(ui->treeView, &QWidget::customContextMenuRequested, this, &MainWindow::showTreeContextMenu);
@@ -84,17 +84,17 @@ MainWindow::MainWindow(QWidget *parent)
     renderer->ResetCameraClippingRange();
 
     // Create a root item
-    ModelPart *rootItem = this->partList->getRootItem();
+    ModelPart* rootItem = this->partList->getRootItem();
 
     // Add 1 top level items
     QString name = QString("Model ").arg(1);
     QString visible("true");
 
     // Create child item
-    ModelPart *childItem = new ModelPart({name, visible});
+    ModelPart* childItem = new ModelPart({ name, visible });
     rootItem->appendChild(childItem);
 
-    
+
 }
 
 MainWindow::~MainWindow()
@@ -116,7 +116,7 @@ void MainWindow::handleTreeClicked() {
 
     if (!index.isValid()) return;
 
-    ModelPart *selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
 
     if (selectedPart) {
         QString text = selectedPart->data(0).toString();
@@ -137,28 +137,29 @@ void MainWindow::openFile() {
         tr("Open File"),
         QDir::homePath(),
         tr("STL Files (*.stl);;All Files (*)")
-        );
+    );
 
     // If files were selected, add them to the tree view
     if (!fileNames.isEmpty()) {
         QModelIndex index = ui->treeView->currentIndex();
-        ModelPart *selectedPart = nullptr;
+        ModelPart* selectedPart = nullptr;
 
         // If no item is selected, add the new parts as children of the root item
         if (!index.isValid()) {
             selectedPart = partList->getRootItem();
-        } else {
+        }
+        else {
             selectedPart = static_cast<ModelPart*>(index.internalPointer());
         }
 
         // Loop through each selected file and add them to the tree
-        for (const QString &fileName : fileNames) {
+        for (const QString& fileName : fileNames) {
             // Create a new ModelPart for the STL file
             QList<QVariant> data = { QFileInfo(fileName).fileName(), "true" };
             QModelIndex newIndex = partList->appendChild(index, data);
 
             // Load the STL file into the new ModelPart
-            ModelPart *newPart = static_cast<ModelPart*>(newIndex.internalPointer());
+            ModelPart* newPart = static_cast<ModelPart*>(newIndex.internalPointer());
             newPart->loadSTL(fileName);
 
             // Update the renderer to show the new STL file
@@ -172,10 +173,10 @@ void MainWindow::on_pushButton_2_clicked()
     openOptionDialog();
 }
 
-void MainWindow::showTreeContextMenu(const QPoint &pos) {
+void MainWindow::showTreeContextMenu(const QPoint& pos) {
     QMenu contextMenu(this);
 
-    QAction *itemOptions = new QAction("Item Options", this);
+    QAction* itemOptions = new QAction("Item Options", this);
     connect(itemOptions, &QAction::triggered, this, &MainWindow::on_actionItemOptions_triggered);
 
     contextMenu.addAction(itemOptions);
@@ -186,7 +187,7 @@ void MainWindow::on_actionItemOptions_triggered() {
     QModelIndex index = ui->treeView->currentIndex();
     if (!index.isValid()) return;
 
-    ModelPart *selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
     if (!selectedPart) return;
 
     Option_Dialog dialog(this);
@@ -221,8 +222,8 @@ void MainWindow::on_actionItemOptions_triggered() {
 
         qDebug() << "Updating tree view for item:" << name << "Color:" << r << g << b;
 
-        QAbstractItemModel *model = ui->treeView->model();
-        emit model->dataChanged(index, index, {Qt::DisplayRole, Qt::BackgroundRole});
+        QAbstractItemModel* model = ui->treeView->model();
+        emit model->dataChanged(index, index, { Qt::DisplayRole, Qt::BackgroundRole });
 
 
         ui->treeView->update();
@@ -248,7 +249,7 @@ void MainWindow::openOptionDialog() {
     }
 
     // Get the selected item
-    ModelPart *selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
     if (!selectedPart) return;
 
     // Open dialog and pass selected item
@@ -260,6 +261,7 @@ void MainWindow::openOptionDialog() {
 
         // Notify TreeView model to refresh
         ui->treeView->model()->dataChanged(index, index);
+        renderWindow->Render();
     }
 }
 
