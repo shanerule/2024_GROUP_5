@@ -95,6 +95,12 @@ public:
       */
     QModelIndex appendChild( QModelIndex& parent, const QList<QVariant>& data );
 
+    bool removeRows(int row, int count, const QModelIndex& parent = QModelIndex()) override;
+    bool removeRow(int row, const QModelIndex& parent = QModelIndex()); // no override here
+    ModelPart* getItem(const QModelIndex& index) const;
+
+
+
 
 private:
     ModelPart *rootItem;    /**< This is a pointer to the item at the base of the tree */

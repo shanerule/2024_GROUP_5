@@ -35,6 +35,9 @@ MainWindow::MainWindow(QWidget* parent)
     // Connect status bar signal to status bar slot
     connect(this, &MainWindow::statusUpdateMessage, ui->statusbar, &QStatusBar::showMessage);
 
+    connect(ui->deleteButton, &QPushButton::clicked, this, &MainWindow::deleteSelectedItem);
+
+
     // Create and initialize the ModelPartList
     this->partList = new ModelPartList("PartsList");
 
@@ -295,6 +298,30 @@ void MainWindow::updateRenderFromTree(const QModelIndex& index) {
             updateRenderFromTree(partList->index(i, 0, index));
         }
     }
+}
+
+void MainWindow::deleteSelectedItem() {
+    QModelIndex index = ui->treeView->currentIndex();
+    if (!index.isValid()) {
+        emit statusUpdateMessage("No item selected to delete.", 0);
+        return;
+    }
+
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    if (!selectedPart) return;
+
+    QString partName = selectedPart->data(0).toString();
+
+    // Optional: Confirm delete
+    if (QMessageBox::question(this, "Confirm Delete", "Are you sure you want to delete " + partName + "?") != QMessageBox::Yes)
+        return;
+
+    QModelIndex parentIndex = index.parent();
+    partList->removeRow(index.row(), parentIndex);
+
+    emit statusUpdateMessage("Deleted: " + partName, 0);
+
+    updateRender(); // Refresh the 3D view
 }
 
 

@@ -144,3 +144,30 @@ QModelIndex ModelPartList::appendChild(QModelIndex& parent, const QList<QVariant
     return child;
 }
 
+bool ModelPartList::removeRow(int row, const QModelIndex& parent) {
+    return removeRows(row, 1, parent);
+}
+
+bool ModelPartList::removeRows(int row, int count, const QModelIndex& parent) {
+    ModelPart* parentItem = getItem(parent);
+    if (!parentItem || row < 0 || row + count > parentItem->childCount())
+        return false;
+
+    beginRemoveRows(parent, row, row + count - 1);
+    for (int i = 0; i < count; ++i) {
+        parentItem->removeChild(row);
+    }
+    endRemoveRows();
+    return true;
+}
+
+ModelPart* ModelPartList::getItem(const QModelIndex& index) const {
+    if (index.isValid()) {
+        auto item = static_cast<ModelPart*>(index.internalPointer());
+        if (item) return item;
+    }
+    return rootItem;
+}
+
+
+
