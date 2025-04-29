@@ -10,12 +10,12 @@
 #ifndef VIEWER_MODELPART_H
 #define VIEWER_MODELPART_H
 
+#pragma once
 #include <QString>
 #include <QList>
 #include <QVariant>
 #include <QColor>
 #include <QBrush>
-
 
   /* VTK headers - will be needed when VTK used in next worksheet,
    * commented out for now
@@ -43,6 +43,8 @@ public:
       */
     ~ModelPart();
 
+
+
     /** Add a child to this item.
       * @param item Pointer to child object (must already be allocated using new)
       */
@@ -54,7 +56,7 @@ public:
       */
     ModelPart* child(int row);
 
-    /** Return number of children to this item 
+    /** Return number of children to this item
       * @return number of children
       */
     int childCount() const;         /* Note on the 'const' keyword - it means that this function is valid for
@@ -98,11 +100,13 @@ public:
       * (0-255 RGB values as ints)
       */
       //void setColour(unsigned char R, unsigned char G, unsigned char B);  // ✅ Corrected
-    void setColor(const QColor& color);
-    unsigned char getColourR() const;
-    unsigned char getColourG() const;
-    unsigned char getColourB() const;
+    //void setColor(const QColor& color);
+    //unsigned char getColourR() const;
+    //unsigned char getColourG() const;
+    //unsigned char getColourB() const;
 
+    QColor getColor() const;
+    void setColor(const QColor& color);
 
 
     /** Set visible flag
@@ -128,17 +132,17 @@ public:
         */
         //vtkActor* getNewActor();
 
-    QColor color() const;
+    //QColor color() const;
     void setName(const QString& newName);
     vtkSmartPointer<vtkActor> getActor() const;
-
-
+    void removeChild(int row);
 
 private:
     QList<ModelPart*>                           m_childItems;       /**< List (array) of child items */
     QList<QVariant>                             m_itemData;         /**< List (array of column data for item */
     ModelPart* m_parentItem;       /**< Pointer to parent */
     QColor partColor;
+    QColor color; 
     QVector<QVariant> data_;
     unsigned char colorR, colorG, colorB;
 
@@ -154,7 +158,7 @@ private:
     vtkSmartPointer<vtkSTLReader>               file;               /**< Datafile from which part loaded */
     vtkSmartPointer<vtkMapper>                  mapper;             /**< Mapper for rendering */
     vtkSmartPointer<vtkActor>                   actor;              /**< Actor for rendering */
-    //vtkColor3<unsigned char>                  colour;             /**< User defineable colour */
+
 
 };
 

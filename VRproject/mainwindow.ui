@@ -59,6 +59,27 @@
        </widget>
       </item>
       <item>
+       <widget class="QPushButton" name="deleteButton">
+        <property name="text">
+         <string>Remove</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="loadBackgroundButton">
+        <property name="text">
+         <string>Load Background</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="loadSkyboxButton">
+        <property name="text">
+         <string>Load Skybox</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
          <enum>Qt::Orientation::Horizontal</enum>
@@ -73,6 +94,27 @@
       </item>
      </layout>
     </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Rotate</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QSlider" name="rotationSpeedSlider">
+        <property name="maximum">
+         <number>100</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -81,7 +123,7 @@
      <x>0</x>
      <y>0</y>
      <width>829</width>
-     <height>26</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -89,6 +131,9 @@
      <string>File</string>
     </property>
     <addaction name="actionOpen_File"/>
+    <addaction name="separator"/>
+    <addaction name="separator"/>
+    <addaction name="actionFreeCamera"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -129,6 +174,14 @@
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionFreeCamera">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Free Camera</string>
    </property>
   </action>
  </widget>

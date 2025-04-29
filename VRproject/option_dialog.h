@@ -2,10 +2,11 @@
 #define OPTION_DIALOG_H
 
 #include <QDialog>
+#include <QColor>
 #include "ModelPart.h"
 
 namespace Ui {
-class Option_Dialog;
+    class Option_Dialog;
 }
 
 class Option_Dialog : public QDialog
@@ -13,23 +14,25 @@ class Option_Dialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit Option_Dialog(QWidget *parent = nullptr);
+    explicit Option_Dialog(QWidget* parent = nullptr);
     ~Option_Dialog();
 
     // Functions to set/get data from the dialog
-    void setModelPartData(const QString &name, int r, int g, int b, bool Visible);
+    void setModelPartData(const QString& name, int r, int g, int b, bool Visible);
     ModelPart* getModelPart();
 
-    void getModelPartData(QString &name, int &r, int &g, int &b, bool &Visible) const;
-    void setModelPart(ModelPart *part);
+    void getModelPartData(QString& name, int& r, int& g, int& b, bool& Visible) const;
+    void setModelPart(ModelPart* part);
     void accept() override;
 
 private slots:
     void updateColorPreview();
+    void on_colorButton_clicked();
 
 private:
-    Ui::Option_Dialog *ui;
-    ModelPart *currentPart;
+    Ui::Option_Dialog* ui;
+    ModelPart* currentPart;
+    QColor selectedColor;
 };
 
 #endif // OPTION_DIALOG_H

@@ -34,11 +34,21 @@ public slots:
     void updateRender();
     void updateRenderFromTree(const QModelIndex& index);
 
+    //Rotate
+    void onRotationSpeedChanged(int value);
+    void onAutoRotate();
+
+
 signals:
     void statusUpdateMessage(const QString &message, int timeout);
 
 private slots:
     void on_pushButton_2_clicked();
+    void deleteSelectedItem();
+
+    void onLoadBackgroundClicked();
+    void onLoadSkyboxClicked();
+
 
 private:
     Ui::MainWindow *ui;
@@ -46,5 +56,9 @@ private:
 
     vtkSmartPointer<vtkRenderer> renderer;
     vtkSmartPointer<vtkGenericOpenGLRenderWindow> renderWindow;
+    //--------------------------
+    QTimer* rotationTimer;
+    double rotationSpeed;
+    //--------------------------
 };
 #endif // MAINWINDOW_H

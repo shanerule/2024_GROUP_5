@@ -15,12 +15,20 @@
 #include <vtkCamera.h>
 #include <vtkProperty.h>
 #include <vtkMapper.h>
+#include <QFileDialog>
+#include <vtkJPEGReader.h>
+#include <vtkPNGReader.h>
+#include <vtkTexture.h>
+#include <qtimer.h>s
+#include "skyboxutils.h"
+#include <QDir>
+#include <qmessagebox.h>
 
 
 
 
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
@@ -32,8 +40,17 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionOpen_File, &QAction::triggered, this, &MainWindow::openFile);
     connect(ui->treeView, &QWidget::customContextMenuRequested, this, &MainWindow::showTreeContextMenu);
 
+    connect(ui->loadBackgroundButton, &QPushButton::clicked, this, &MainWindow::onLoadBackgroundClicked);
+
+    //skybox connect 
+    connect(ui->loadSkyboxButton, &QPushButton::clicked, this, &MainWindow::onLoadSkyboxClicked);
+
     // Connect status bar signal to status bar slot
     connect(this, &MainWindow::statusUpdateMessage, ui->statusbar, &QStatusBar::showMessage);
+
+    connect(ui->deleteButton, &QPushButton::clicked, this, &MainWindow::deleteSelectedItem);
+
+
 
     // Create and initialize the ModelPartList
     this->partList = new ModelPartList("PartsList");
@@ -84,18 +101,27 @@ MainWindow::MainWindow(QWidget *parent)
     renderer->ResetCameraClippingRange();
 
     // Create a root item
-    ModelPart *rootItem = this->partList->getRootItem();
+    ModelPart* rootItem = this->partList->getRootItem();
 
-    // Add 3 top-level items
-    
-    QString name = QString("Model %1").arg(1);
+    // Add 1 top level items
+    QString name = QString("Model ").arg(1);
     QString visible("true");
 
     // Create child item
-    ModelPart *childItem = new ModelPart({name, visible});
+    ModelPart* childItem = new ModelPart({ name, visible });
     rootItem->appendChild(childItem);
+    //--------------------------------------
+    // Create the rotation timer
+    rotationTimer = new QTimer(this);
+    connect(rotationTimer, &QTimer::timeout, this, &MainWindow::onAutoRotate);
 
-    
+    // Connect slider signal
+    connect(ui->rotationSpeedSlider, &QSlider::valueChanged, this, &MainWindow::onRotationSpeedChanged);
+
+    // Start with stopped rotation
+    rotationSpeed = 0.0;
+    rotationTimer->start(16); // ~60 FPS (16 ms)
+    //--------------------------------------
 }
 
 MainWindow::~MainWindow()
@@ -117,7 +143,7 @@ void MainWindow::handleTreeClicked() {
 
     if (!index.isValid()) return;
 
-    ModelPart *selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
 
     if (selectedPart) {
         QString text = selectedPart->data(0).toString();
@@ -130,48 +156,54 @@ void MainWindow::on_actionOpen_File_triggered() {
     emit statusUpdateMessage(QString("Open File action triggered"), 0);
 }
 
+// Implement only this for select multiple
 void MainWindow::openFile() {
-    // Open a file dialog to select a file
-    QString fileName = QFileDialog::getOpenFileName(
+    // Open a file dialog to select multiple files
+    QStringList fileNames = QFileDialog::getOpenFileNames(
         this,
         tr("Open File"),
         QDir::homePath(),
         tr("STL Files (*.stl);;All Files (*)")
-        );
+    );
 
-    // If a file was selected, add it to the tree view
-    if (!fileName.isEmpty()) {
+    // If files were selected, add them to the tree view
+    if (!fileNames.isEmpty()) {
         QModelIndex index = ui->treeView->currentIndex();
-        ModelPart *selectedPart = nullptr;
+        ModelPart* selectedPart = nullptr;
 
-        // If no item is selected, add the new part as a child of the root item
+        // If no item is selected, add the new parts as children of the root item
         if (!index.isValid()) {
             selectedPart = partList->getRootItem();
-        } else {
+        }
+        else {
             selectedPart = static_cast<ModelPart*>(index.internalPointer());
         }
 
-        // Create a new ModelPart for the STL file
-        QList<QVariant> data = { QFileInfo(fileName).fileName(), "true" };
-        QModelIndex newIndex = partList->appendChild(index, data);
+        // Loop through each selected file and add them to the tree
+        for (const QString& fileName : fileNames) {
+            // Create a new ModelPart for the STL file
+            QList<QVariant> data = { QFileInfo(fileName).fileName(), "true" };
+            QModelIndex newIndex = partList->appendChild(index, data);
 
-        // Load the STL file into the new ModelPart
-        ModelPart *newPart = static_cast<ModelPart*>(newIndex.internalPointer());
-        newPart->loadSTL(fileName);
+            // Load the STL file into the new ModelPart
+            ModelPart* newPart = static_cast<ModelPart*>(newIndex.internalPointer());
+            newPart->loadSTL(fileName);
 
-        // Update the renderer to show the new STL file
-        updateRender();
+            // Update the renderer to show the new STL file
+            updateRender();
+        }
     }
 }
+
 void MainWindow::on_pushButton_2_clicked()
 {
     openOptionDialog();
 }
 
-void MainWindow::showTreeContextMenu(const QPoint &pos) {
+void MainWindow::showTreeContextMenu(const QPoint& pos) {
     QMenu contextMenu(this);
 
-    QAction *itemOptions = new QAction("Item Options", this);
+    QAction* itemOptions = new QAction("Item Options", this);
     connect(itemOptions, &QAction::triggered, this, &MainWindow::on_actionItemOptions_triggered);
 
     contextMenu.addAction(itemOptions);
@@ -182,7 +214,7 @@ void MainWindow::on_actionItemOptions_triggered() {
     QModelIndex index = ui->treeView->currentIndex();
     if (!index.isValid()) return;
 
-    ModelPart *selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
     if (!selectedPart) return;
 
     Option_Dialog dialog(this);
@@ -199,6 +231,8 @@ void MainWindow::on_actionItemOptions_triggered() {
         selectedPart->setName(name);
         selectedPart->setColor(QColor(r, g, b));
         selectedPart->setVisible(visible);
+
+        //renderWindow->Render();
         //selectedPart->set(1, visible ? "true" : "false"); // Store visibility text
 
         // Refresh the UI
@@ -215,13 +249,14 @@ void MainWindow::on_actionItemOptions_triggered() {
 
         qDebug() << "Updating tree view for item:" << name << "Color:" << r << g << b;
 
-        QAbstractItemModel *model = ui->treeView->model();
-        emit model->dataChanged(index, index, {Qt::DisplayRole, Qt::BackgroundRole});
+        QAbstractItemModel* model = ui->treeView->model();
+        emit model->dataChanged(index, index, { Qt::DisplayRole, Qt::BackgroundRole });
 
 
         ui->treeView->update();
         ui->treeView->viewport()->update();
 
+        renderWindow->Render();
 
         //emit statusUpdateMessage("Item Options Selected", 0);
 
@@ -232,6 +267,7 @@ void MainWindow::on_actionItemOptions_triggered() {
 
 }
 
+
 void MainWindow::openOptionDialog() {
     QModelIndex index = ui->treeView->currentIndex();
     if (!index.isValid()) {
@@ -240,7 +276,7 @@ void MainWindow::openOptionDialog() {
     }
 
     // Get the selected item
-    ModelPart *selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
     if (!selectedPart) return;
 
     // Open dialog and pass selected item
@@ -252,16 +288,18 @@ void MainWindow::openOptionDialog() {
 
         // Notify TreeView model to refresh
         ui->treeView->model()->dataChanged(index, index);
+        renderWindow->Render();
     }
 }
 
-void MainWindow::updateRender() {
-    renderer->RemoveAllViewProps();  // Remove old actors
-    updateRenderFromTree(partList->index(0, 0, QModelIndex()));  // Re-add new actors
-    renderer->ResetCamera();  // Reset the camera to focus on new models
-    renderer->Render();  // Render scene
+void MainWindow::updateRender()
+{
+    renderer->RemoveAllViewProps();
+    updateRenderFromTree(partList->index(0, 0, QModelIndex()));
 
-
+    renderer->ResetCamera();
+    renderer->ResetCameraClippingRange();
+    renderer->Render();
 }
 
 void MainWindow::updateRenderFromTree(const QModelIndex& index) {
@@ -286,6 +324,124 @@ void MainWindow::updateRenderFromTree(const QModelIndex& index) {
         }
     }
 }
+
+void MainWindow::deleteSelectedItem() {
+    QModelIndex index = ui->treeView->currentIndex();
+    if (!index.isValid()) {
+        emit statusUpdateMessage("No item selected to delete.", 0);
+        return;
+    }
+
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    if (!selectedPart) return;
+
+    QString partName = selectedPart->data(0).toString();
+
+    // Optional: Confirm delete
+    if (QMessageBox::question(this, "Confirm Delete", "Are you sure you want to delete " + partName + "?") != QMessageBox::Yes)
+        return;
+
+    QModelIndex parentIndex = index.parent();
+    partList->removeRow(index.row(), parentIndex);
+
+    emit statusUpdateMessage("Deleted: " + partName, 0);
+
+    updateRender(); // Refresh the 3D view
+}
+
+void MainWindow::onLoadBackgroundClicked()
+{
+    QString fileName = QFileDialog::getOpenFileName(this,
+        tr("Open Background Image"), "",
+        tr("Images (*.png *.jpg *.jpeg)"));
+
+    if (fileName.isEmpty())
+        return;
+
+    // Detect file type
+    std::string fileStd = fileName.toStdString();
+    vtkSmartPointer<vtkImageReader2> reader;
+
+    if (fileName.endsWith(".jpg", Qt::CaseInsensitive) || fileName.endsWith(".jpeg", Qt::CaseInsensitive)) {
+        reader = vtkSmartPointer<vtkJPEGReader>::New();
+    }
+    else if (fileName.endsWith(".png", Qt::CaseInsensitive)) {
+        reader = vtkSmartPointer<vtkPNGReader>::New();
+    }
+    else {
+        // Unsupported format
+        return;
+    }
+
+    reader->SetFileName(fileStd.c_str());
+    reader->Update();
+
+    vtkSmartPointer<vtkTexture> backgroundTexture = vtkSmartPointer<vtkTexture>::New();
+    backgroundTexture->SetInputConnection(reader->GetOutputPort());
+
+    this->renderer->TexturedBackgroundOn();
+    this->renderer->SetBackgroundTexture(backgroundTexture);
+
+    // Refresh render window
+    this->renderWindow->Render();
+}
+//----------------Rotate-----------------------------//
+void MainWindow::onRotationSpeedChanged(int value)
+{
+    // Map slider value (0 to 100) to a rotation speed (degrees per timer tick)
+    rotationSpeed = static_cast<double>(value) * 0.1; // adjust 0.1 if needed
+
+    // No need to change timer interval — speed is controlled by rotation amount
+}
+
+void MainWindow::onAutoRotate()
+{
+    if (rotationSpeed == 0.0)
+        return;
+
+    // Rotate the actor, not the camera!
+    QModelIndex index = ui->treeView->currentIndex();
+    if (!index.isValid())
+        return;
+
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    if (!selectedPart)
+        return;
+
+    vtkSmartPointer<vtkActor> actor = selectedPart->getActor();
+    if (actor)
+    {
+        actor->RotateY(rotationSpeed);  // You can also use RotateX or RotateZ depending on desired axis
+    }
+
+    this->renderWindow->Render();
+}
+
+//---------------------------------------------------//
+
+//-----------------------sky slot function-----------------------//
+void MainWindow::onLoadSkyboxClicked()
+{
+    QString dirPath = QFileDialog::getExistingDirectory(this, "Select Skybox Folder");
+    if (dirPath.isEmpty())
+        return;
+
+    std::vector<std::string> faceFilenames = {
+        (dirPath + "/px.png").toStdString(),   // +X
+        (dirPath + "/nx.png").toStdString(),    // -X
+        (dirPath + "/py.png").toStdString(),     // +Y
+        (dirPath + "/ny.png").toStdString(),  // -Y
+        (dirPath + "/pz.png").toStdString(),   // +Z
+        (dirPath + "/nz.png").toStdString()     // -Z
+    };
+
+    auto cubemapTexture = LoadCubemapTexture(faceFilenames);
+    AddSkyboxToRenderer(renderer, cubemapTexture);
+    renderWindow->Render();
+}
+
+
+
 
 //void MainWindow::openFile() {
 // Open a file dialog to select a file
