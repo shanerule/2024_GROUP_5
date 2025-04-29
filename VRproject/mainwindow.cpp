@@ -1,3 +1,4 @@
+#include <vtkLight.h>
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include <QMessageBox>
@@ -15,18 +16,8 @@
 #include <vtkCamera.h>
 #include <vtkProperty.h>
 #include <vtkMapper.h>
-#include <QFileDialog>
-#include <vtkJPEGReader.h>
-#include <vtkPNGReader.h>
-#include <vtkTexture.h>
-#include <qtimer.h>s
-#include "skyboxutils.h"
-#include <QDir>
-#include <qmessagebox.h>
-
-
-
-
+#include <QVTKInteractor.h>
+#include <vtkLightCollection.h>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -40,17 +31,12 @@ MainWindow::MainWindow(QWidget* parent)
     connect(ui->actionOpen_File, &QAction::triggered, this, &MainWindow::openFile);
     connect(ui->treeView, &QWidget::customContextMenuRequested, this, &MainWindow::showTreeContextMenu);
 
-    connect(ui->loadBackgroundButton, &QPushButton::clicked, this, &MainWindow::onLoadBackgroundClicked);
-
-    //skybox connect 
-    connect(ui->loadSkyboxButton, &QPushButton::clicked, this, &MainWindow::onLoadSkyboxClicked);
-
     // Connect status bar signal to status bar slot
     connect(this, &MainWindow::statusUpdateMessage, ui->statusbar, &QStatusBar::showMessage);
 
     connect(ui->deleteButton, &QPushButton::clicked, this, &MainWindow::deleteSelectedItem);
 
-
+    connect(ui->horizontalSlider, &QSlider::valueChanged, this, &MainWindow::onLightIntensityChanged);
 
     // Create and initialize the ModelPartList
     this->partList = new ModelPartList("PartsList");
@@ -110,18 +96,21 @@ MainWindow::MainWindow(QWidget* parent)
     // Create child item
     ModelPart* childItem = new ModelPart({ name, visible });
     rootItem->appendChild(childItem);
-    //--------------------------------------
-    // Create the rotation timer
-    rotationTimer = new QTimer(this);
-    connect(rotationTimer, &QTimer::timeout, this, &MainWindow::onAutoRotate);
 
-    // Connect slider signal
-    connect(ui->rotationSpeedSlider, &QSlider::valueChanged, this, &MainWindow::onRotationSpeedChanged);
+    // -- - Setup scene light-- -
+        sceneLight = vtkSmartPointer<vtkLight>::New();
+    sceneLight->SetLightTypeToSceneLight();
+    sceneLight->SetPosition(5, 5, 15);
+    sceneLight->SetPositional(true);
+    sceneLight->SetConeAngle(15);
+    sceneLight->SetFocalPoint(0, 0, 0);
+    sceneLight->SetDiffuseColor(1, 1, 1);
+    sceneLight->SetAmbientColor(1, 1, 1);
+    sceneLight->SetSpecularColor(1, 1, 1);
+    sceneLight->SetIntensity(0.5);  // Initial intensity
 
-    // Start with stopped rotation
-    rotationSpeed = 0.0;
-    rotationTimer->start(16); // ~60 FPS (16 ms)
-    //--------------------------------------
+    renderer->AddLight(sceneLight);  // Add light after adding actors
+
 }
 
 MainWindow::~MainWindow()
@@ -292,14 +281,12 @@ void MainWindow::openOptionDialog() {
     }
 }
 
-void MainWindow::updateRender()
-{
-    renderer->RemoveAllViewProps();
-    updateRenderFromTree(partList->index(0, 0, QModelIndex()));
+void MainWindow::updateRender() {
+    renderer->RemoveAllViewProps();  // Remove old actors
+    updateRenderFromTree(partList->index(0, 0, QModelIndex()));  // Re-add new actors
+    renderer->ResetCamera();  // Reset the camera to focus on new models
+    renderer->Render();  // Render scene
 
-    renderer->ResetCamera();
-    renderer->ResetCameraClippingRange();
-    renderer->Render();
 }
 
 void MainWindow::updateRenderFromTree(const QModelIndex& index) {
@@ -349,99 +336,68 @@ void MainWindow::deleteSelectedItem() {
     updateRender(); // Refresh the 3D view
 }
 
-void MainWindow::onLoadBackgroundClicked()
+void MainWindow::onLightIntensityChanged(int value)
 {
-    QString fileName = QFileDialog::getOpenFileName(this,
-        tr("Open Background Image"), "",
-        tr("Images (*.png *.jpg *.jpeg)"));
+    if (!sceneLight) return;
 
-    if (fileName.isEmpty())
-        return;
-
-    // Detect file type
-    std::string fileStd = fileName.toStdString();
-    vtkSmartPointer<vtkImageReader2> reader;
-
-    if (fileName.endsWith(".jpg", Qt::CaseInsensitive) || fileName.endsWith(".jpeg", Qt::CaseInsensitive)) {
-        reader = vtkSmartPointer<vtkJPEGReader>::New();
-    }
-    else if (fileName.endsWith(".png", Qt::CaseInsensitive)) {
-        reader = vtkSmartPointer<vtkPNGReader>::New();
-    }
-    else {
-        // Unsupported format
-        return;
-    }
-
-    reader->SetFileName(fileStd.c_str());
-    reader->Update();
-
-    vtkSmartPointer<vtkTexture> backgroundTexture = vtkSmartPointer<vtkTexture>::New();
-    backgroundTexture->SetInputConnection(reader->GetOutputPort());
-
-    this->renderer->TexturedBackgroundOn();
-    this->renderer->SetBackgroundTexture(backgroundTexture);
-
-    // Refresh render window
-    this->renderWindow->Render();
-}
-//----------------Rotate-----------------------------//
-void MainWindow::onRotationSpeedChanged(int value)
-{
-    // Map slider value (0 to 100) to a rotation speed (degrees per timer tick)
-    rotationSpeed = static_cast<double>(value) * 0.1; // adjust 0.1 if needed
-
-    // No need to change timer interval — speed is controlled by rotation amount
-}
-
-void MainWindow::onAutoRotate()
-{
-    if (rotationSpeed == 0.0)
-        return;
-
-    // Rotate the actor, not the camera!
-    QModelIndex index = ui->treeView->currentIndex();
-    if (!index.isValid())
-        return;
-
-    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
-    if (!selectedPart)
-        return;
-
-    vtkSmartPointer<vtkActor> actor = selectedPart->getActor();
-    if (actor)
-    {
-        actor->RotateY(rotationSpeed);  // You can also use RotateX or RotateZ depending on desired axis
-    }
-
-    this->renderWindow->Render();
-}
-
-//---------------------------------------------------//
-
-//-----------------------sky slot function-----------------------//
-void MainWindow::onLoadSkyboxClicked()
-{
-    QString dirPath = QFileDialog::getExistingDirectory(this, "Select Skybox Folder");
-    if (dirPath.isEmpty())
-        return;
-
-    std::vector<std::string> faceFilenames = {
-        (dirPath + "/px.png").toStdString(),   // +X
-        (dirPath + "/nx.png").toStdString(),    // -X
-        (dirPath + "/py.png").toStdString(),     // +Y
-        (dirPath + "/ny.png").toStdString(),  // -Y
-        (dirPath + "/pz.png").toStdString(),   // +Z
-        (dirPath + "/nz.png").toStdString()     // -Z
-    };
-
-    auto cubemapTexture = LoadCubemapTexture(faceFilenames);
-    AddSkyboxToRenderer(renderer, cubemapTexture);
+    // Map slider value [0–100] to [0.0–1.0] intensity
+    double intensity = static_cast<double>(value) / 100.0;
+    sceneLight->SetIntensity(intensity);
     renderWindow->Render();
 }
 
+void MainWindow::on_checkBox_Clip_toggled(bool checked)
+{
+    QModelIndex index = ui->treeView->currentIndex();
+    if (!index.isValid()) return;
 
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    if (!selectedPart) return;
 
+    if (checked) {
+        selectedPart->applyClipFilter();
+    }
+    else {
+        selectedPart->removeClipFilter();
+    }
+
+    refreshSelectedActor();
+}
+
+void MainWindow::on_checkBox_Shrink_toggled(bool checked)
+{
+    QModelIndex index = ui->treeView->currentIndex();
+    if (!index.isValid()) return;
+
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    if (!selectedPart) return;
+
+    if (checked) {
+        selectedPart->applyShrinkFilter();
+    }
+    else {
+        selectedPart->removeShrinkFilter();
+    }
+
+    refreshSelectedActor();
+}
+
+void MainWindow::refreshSelectedActor()
+{
+    QModelIndex index = ui->treeView->currentIndex();
+    if (!index.isValid()) return;
+
+    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
+    if (!selectedPart) return;
+
+    vtkSmartPointer<vtkActor> actor = selectedPart->getActor();
+    if (!actor) return;
+
+    renderer->RemoveActor(actor);
+    renderer->AddActor(actor);
+
+    renderWindow->Render();
+}
 
 //void MainWindow::openFile() {
 // Open a file dialog to select a file
@@ -468,3 +424,5 @@ void MainWindow::onLoadSkyboxClicked()
 //   emit statusUpdateMessage("Updated item name to " + newName, 0);
 //  }
 //}
+
+

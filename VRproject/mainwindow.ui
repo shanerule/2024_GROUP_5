@@ -66,20 +66,6 @@
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="loadBackgroundButton">
-        <property name="text">
-         <string>Load Background</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="loadSkyboxButton">
-        <property name="text">
-         <string>Load Skybox</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
          <enum>Qt::Orientation::Horizontal</enum>
@@ -99,21 +85,51 @@
       <item>
        <widget class="QLabel" name="label">
         <property name="text">
-         <string>Rotate</string>
+         <string>Light Intensity</string>
         </property>
        </widget>
       </item>
       <item>
-       <widget class="QSlider" name="rotationSpeedSlider">
+       <widget class="QSlider" name="horizontalSlider">
         <property name="maximum">
          <number>100</number>
+        </property>
+        <property name="value">
+         <number>50</number>
         </property>
         <property name="orientation">
          <enum>Qt::Orientation::Horizontal</enum>
         </property>
        </widget>
       </item>
+      <item>
+       <spacer name="horizontalSpacer_2">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
      </layout>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="checkBox_Clip">
+      <property name="text">
+       <string>Apply clip filter</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QCheckBox" name="checkBox_Shrink">
+      <property name="text">
+       <string>Apply shrink filter</string>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -131,9 +147,6 @@
      <string>File</string>
     </property>
     <addaction name="actionOpen_File"/>
-    <addaction name="separator"/>
-    <addaction name="separator"/>
-    <addaction name="actionFreeCamera"/>
    </widget>
    <addaction name="menuFile"/>
   </widget>
@@ -176,20 +189,12 @@
     <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
-  <action name="actionFreeCamera">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>Free Camera</string>
-   </property>
-  </action>
  </widget>
  <customwidgets>
   <customwidget>
    <class>QVTKOpenGLNativeWidget</class>
    <extends>QWidget</extends>
-   <header>qvtkopenglnativewidget.h</header>
+   <header>QVTKOpenGLNativeWidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
