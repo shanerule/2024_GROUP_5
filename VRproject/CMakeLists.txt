@@ -1,33 +1,41 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(VRproject VERSION 0.1 LANGUAGES CXX)
+project(VRProject VERSION 0.1 LANGUAGES CXX)
 
-# Core VTK modules
-find_package(VTK REQUIRED
-  COMPONENTS
+# CMake Policies
+cmake_policy(SET CMP0072 NEW)
+
+# Qt automatic processing
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find Qt packages
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Core OpenGL OpenGLWidgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Core OpenGL OpenGLWidgets)
+
+# Find VTK packages
+find_package(VTK REQUIRED COMPONENTS
     CommonCore
+    CommonDataModel
+    FiltersCore
+    FiltersGeneral
+    FiltersGeometry
     RenderingCore
     RenderingOpenGL2
     IOImage
     IOGeometry
-    FiltersSources
-    GUISupportQt
     InteractionStyle
+    FiltersSources
+    ViewsQt
 )
 
-# Qt setup
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
+message(STATUS "Using Qt version: ${Qt${QT_VERSION_MAJOR}_VERSION}")
+message(STATUS "Using VTK version: ${VTK_VERSION}")
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Qt version check
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets OpenGL OpenGLWidgets)
-
-# Project source files
+# Project Source Files
 set(PROJECT_SOURCES
     main.cpp
     mainwindow.cpp
@@ -37,72 +45,70 @@ set(PROJECT_SOURCES
     ModelPart.h
     ModelPartList.cpp
     ModelPartList.h
-    skyboxutils.h
-    skyboxutils.cpp
-    Option_Dialog.h
     Option_Dialog.cpp
+    Option_Dialog.h
     Option_Dialog.ui
     Icons.qrc
 )
 
-# Executable definition (Qt6-friendly)
+# Create Executable
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(VRproject
+    qt_add_executable(VRProject
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
     )
 else()
-    if(ANDROID)
-        add_library(VRproject SHARED ${PROJECT_SOURCES})
-    else()
-        add_executable(VRproject ${PROJECT_SOURCES})
-    endif()
+    add_executable(VRProject
+        ${PROJECT_SOURCES}
+    )
 endif()
 
-# Link all required Qt + VTK modules
-target_link_libraries(VRproject PRIVATE
-  Qt${QT_VERSION_MAJOR}::Widgets
-  Qt${QT_VERSION_MAJOR}::OpenGL
-  Qt${QT_VERSION_MAJOR}::OpenGLWidgets
-  VTK::RenderingCore
-  VTK::RenderingOpenGL2
-  VTK::IOImage
-  VTK::IOGeometry
-  VTK::FiltersSources
-  VTK::GUISupportQt
-  VTK::InteractionStyle
+# Link Libraries
+target_link_libraries(VRProject PRIVATE
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::OpenGL
+    Qt${QT_VERSION_MAJOR}::OpenGLWidgets
+
+    VTK::CommonCore
+    VTK::CommonDataModel
+    VTK::FiltersCore
+    VTK::FiltersGeneral
+    VTK::FiltersGeometry
+    VTK::RenderingCore
+    VTK::RenderingOpenGL2
+    VTK::IOImage
+    VTK::IOGeometry
+    VTK::InteractionStyle
+    VTK::FiltersSources
+    VTK::ViewsQt
 )
 
-# macOS/Windows bundle settings
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.VRproject)
-endif()
-
-set_target_properties(VRproject PROPERTIES
-    ${BUNDLE_ID_OPTION}
+# Platform Properties
+set_target_properties(VRProject PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
 
-# Installer
+# Install
 include(GNUInstallDirs)
-install(TARGETS VRproject
+install(TARGETS VRProject
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-# Finalize for Qt 6
+# Qt6 Finalization
 if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(VRproject)
+    qt_finalize_executable(VRProject)
 endif()
 
-# Custom copy task
+# VR Bindings Support
 add_custom_target(VRBindings)
 add_custom_command(TARGET VRBindings PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/vrbindings
-        ${CMAKE_BINARY_DIR}/
+    ${CMAKE_SOURCE_DIR}/vrbindings
+    ${CMAKE_BINARY_DIR}/
 )

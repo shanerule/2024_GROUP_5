@@ -8,6 +8,10 @@
 #include <vtkSmartPointer.h>
 #include <vtkRenderer.h>
 #include <vtkGenericOpenGLRenderWindow.h>
+#include <vtkLight.h>
+#include <QVTKOpenGLNativeWidget.h>
+#include <QVTKInteractor.h>
+#include <vtkGenericOpenGLRenderWindow.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -34,11 +38,6 @@ public slots:
     void updateRender();
     void updateRenderFromTree(const QModelIndex& index);
 
-    //Rotate
-    void onRotationSpeedChanged(int value);
-    void onAutoRotate();
-
-
 signals:
     void statusUpdateMessage(const QString &message, int timeout);
 
@@ -46,9 +45,11 @@ private slots:
     void on_pushButton_2_clicked();
     void deleteSelectedItem();
 
-    void onLoadBackgroundClicked();
-    void onLoadSkyboxClicked();
+    void on_checkBox_Clip_toggled(bool checked);
 
+    void on_checkBox_Shrink_toggled(bool checked);
+    void refreshSelectedActor();
+    void onLightIntensityChanged(int value);
 
 private:
     Ui::MainWindow *ui;
@@ -56,9 +57,6 @@ private:
 
     vtkSmartPointer<vtkRenderer> renderer;
     vtkSmartPointer<vtkGenericOpenGLRenderWindow> renderWindow;
-    //--------------------------
-    QTimer* rotationTimer;
-    double rotationSpeed;
-    //--------------------------
+    vtkSmartPointer<vtkLight> sceneLight;
 };
 #endif // MAINWINDOW_H

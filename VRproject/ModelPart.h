@@ -29,6 +29,7 @@
 #include <vtkActor.h>
 #include <vtkSTLReader.h>
 #include <vtkColor.h>
+#include <vtkAlgorithm.h>  
 
 class ModelPart {
 public:
@@ -134,6 +135,10 @@ public:
 
     //QColor color() const;
     void setName(const QString& newName);
+    void applyClipFilter();      // Apply Clip
+    void removeClipFilter();     // Remove Clip
+    void applyShrinkFilter();    // Apply Shrink
+    void removeShrinkFilter();   // Remove Shrink
     vtkSmartPointer<vtkActor> getActor() const;
     void removeChild(int row);
 
@@ -151,14 +156,15 @@ private:
      * want to add you own.
      */
     bool                                        isVisible;          /**< True/false to indicate if should be visible in model rendering */
-
+    bool clipFilterActive = false;
+    bool shrinkFilterActive = false;
     /* These are vtk properties that will be used to load/render a model of this part,
      * commented out for now but will be used later
      */
     vtkSmartPointer<vtkSTLReader>               file;               /**< Datafile from which part loaded */
     vtkSmartPointer<vtkMapper>                  mapper;             /**< Mapper for rendering */
     vtkSmartPointer<vtkActor>                   actor;              /**< Actor for rendering */
-
+    vtkSmartPointer<vtkAlgorithm> currentFilter;
 
 };
 

@@ -18,7 +18,11 @@
 #include <vtkDataSetMapper.h>
 #include <vtkProperty.h>
 #include <vtkPolyDataMapper.h>
-
+#include <vtkPlane.h>
+#include <vtkClipPolyData.h>
+#include <vtkShrinkPolyData.h>
+#include <vtkCleanPolyData.h>
+#include <vtkPolyDataNormals.h>
 
 ModelPart::ModelPart(const QList<QVariant>& data, ModelPart* parent)
     : m_itemData(data), m_parentItem(parent) {
@@ -212,27 +216,107 @@ void ModelPart::loadSTL(QString fileName) {
     reader->SetFileName(fileName.toStdString().c_str());
     reader->Update();
 
-    // Create a mapper and link it to the STL reader
+    // Generate surface normals (needed for lighting)
+    vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
+    normals->SetInputConnection(reader->GetOutputPort());
+    normals->ConsistencyOn();
+    normals->AutoOrientNormalsOn();
+    normals->Update();
+
+    // Create a mapper and link it to the normals
     vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->SetInputConnection(reader->GetOutputPort());
+    mapper->SetInputConnection(normals->GetOutputPort());
 
     // Create an actor and link it to the mapper
-    //vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
     actor = vtkSmartPointer<vtkActor>::New();
-
     actor->SetMapper(mapper);
+    actor->GetProperty()->SetColor(0.9, 0.0, 0.0); // Default: reddish
 
     // Store the VTK objects in the ModelPart
     this->file = reader;
     this->mapper = mapper;
     this->actor = actor;
-
-    // Set the color of the actor (optional)
-    actor->GetProperty()->SetColor(1.0, 0.0, 0.0); // Red color
 }
+
 
 vtkSmartPointer<vtkActor> ModelPart::getActor() const {
     return actor;
+}
+
+void ModelPart::applyClipFilter()
+{
+    if (!file) return;
+
+    currentFilter = static_cast<vtkAlgorithm*>(file.GetPointer());
+
+    double bounds[6];
+    file->GetOutput()->GetBounds(bounds);
+
+    double centerX = (bounds[0] + bounds[1]) / 2.0;
+    double centerY = (bounds[2] + bounds[3]) / 2.0;
+    double centerZ = (bounds[4] + bounds[5]) / 2.0;
+
+    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+    plane->SetOrigin(centerX, centerY, centerZ);   
+    plane->SetNormal(1.0, 0.0, 0.0);      
+
+    // --- STEP 1: Clip Filter ---
+    auto clipFilter = vtkSmartPointer<vtkClipPolyData>::New();
+    clipFilter->SetInputConnection(currentFilter->GetOutputPort());
+    clipFilter->SetClipFunction(plane);
+    clipFilter->Update();
+
+    // --- STEP 2: Clean Filter ---
+    auto cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+    cleanFilter->SetInputConnection(clipFilter->GetOutputPort());
+    cleanFilter->Update();
+
+    // --- STEP 3: Mapper-Actor ---
+    currentFilter = static_cast<vtkAlgorithm*>(cleanFilter.GetPointer());
+    mapper->SetInputConnection(currentFilter->GetOutputPort());
+    actor->SetMapper(mapper);
+}
+
+
+void ModelPart::removeClipFilter()
+{
+    if (!file) return;
+
+    mapper->SetInputConnection(file->GetOutputPort());
+    actor->SetMapper(mapper);
+    clipFilterActive = false;
+}
+
+void ModelPart::applyShrinkFilter()
+{
+    if (!file) return;
+
+    currentFilter = static_cast<vtkAlgorithm*>(file.GetPointer());
+
+    // --- STEP 1: Shrink Filter ---
+    auto shrinkFilter = vtkSmartPointer<vtkShrinkPolyData>::New();
+    shrinkFilter->SetInputConnection(currentFilter->GetOutputPort());
+    shrinkFilter->SetShrinkFactor(0.8);  
+    shrinkFilter->Update();
+
+    // --- STEP 2: Clean Filter ---
+    auto cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
+    cleanFilter->SetInputConnection(shrinkFilter->GetOutputPort());
+    cleanFilter->Update();
+
+    // --- STEP 3: Mapper-Actor ---
+    currentFilter = static_cast<vtkAlgorithm*>(cleanFilter.GetPointer());
+    mapper->SetInputConnection(currentFilter->GetOutputPort());
+    actor->SetMapper(mapper);
+}
+
+void ModelPart::removeShrinkFilter()
+{
+    if (!file) return;
+
+    mapper->SetInputConnection(file->GetOutputPort());
+    actor->SetMapper(mapper);
+    shrinkFilterActive = false;
 }
 
 void ModelPart::removeChild(int row) {
