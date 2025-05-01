@@ -1,109 +1,146 @@
-/**     @file ModelPartList.h
+/**
+  *  @file ModelPartList.h
   *
-  *     EEEE2076 - Software Engineering & VR Project
+  *  EEEE2076 - Software Engineering & VR Project
   *
-  *     Template for model part list that will be used to create the trewview.
+  *  Template for model part list that will be used to create the treeview.
   *
-  *     P Evans 2022
+  *  P Evans 2022
   */
-  
-#ifndef VIEWER_MODELPARTLIST_H
-#define VIEWER_MODELPARTLIST_H
 
+#ifndef VIEWER_MODELPARTLIST_H  
+#define VIEWER_MODELPARTLIST_H  
 
-#include "ModelPart.h"
+#pragma once  
 
-#include <QAbstractItemModel>
-#include <QModelIndex>
-#include <QVariant>
-#include <QString>
-#include <QList>
+#include "ModelPart.h"  
+
+#include <QAbstractItemModel>  
+#include <QModelIndex>  
+#include <QVariant>  
+#include <QString>  
+#include <QList>  
 
 class ModelPart;
 
 class ModelPartList : public QAbstractItemModel {
-    Q_OBJECT        /**< A special Qt tag used to indicate that this is a special Qt class that might require preprocessing before compiling. */
-public:
-    /** Constructor
-      *  Arguments are standard arguments for this type of class but are not used in this example.
-      * @param data is not used
-      * @param parent is used by the parent class constructor
-      */
-    ModelPartList( const QString& data, QObject* parent = NULL );
+    Q_OBJECT        /**< Qt meta-object tag (enables signals/slots, etc.) */
 
-    /** Destructor
-      *  Frees root item allocated in constructor
+public:
+    /**
+      * Constructor
+      * @param data   Unused string (could define column headers)
+      * @param parent Parent QObject for Qt hierarchy
+      */
+    ModelPartList(const QString& data, QObject* parent = nullptr);
+
+    /**
+      * Destructor
+      * Frees the root item allocated in constructor
       */
     ~ModelPartList();
 
-    /** Return column count
-      * @param parent is not used
-      * @return number of columns in the tree view - "Part" and "Visible", i.e. 2 in this case
+    /**
+      * Return number of columns in the tree view
+      * @param parent Unused
+      * @return number of columns – e.g. "Part" and "Visible" = 2
       */
-    int columnCount( const QModelIndex& parent ) const;
+    int columnCount(const QModelIndex& parent = QModelIndex()) const override;
 
-    /** This returns the value of a particular row (i.e. the item index) and 
-      *  columns (i.e. either the "Part" or "Visible" property).
-      *  It is used by QT internally - this is how Qt retrieves the text to display in the TreeView
-      * @param index in a stucture Qt uses to specify the row and column it wants data for
-      * @param role is how Qt specifies what it wants to do with the data
-      * @return a QVariant which is a generic variable used to represent any Qt class type, in this case the QVariant will be a string
+    /**
+      * Return the data for a given index and role
+      * @param index Model index (row + column)
+      * @param role  Qt role (DisplayRole, BackgroundRole, etc.)
+      * @return QVariant containing the data or empty if invalid/unsupported role
       */
-    QVariant data( const QModelIndex& index, int role ) const;
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-    /** Standard function used by Qt internally.
-      * @param index in a stucture Qt uses to specify the row and column it wants data for
-      * @return a Qt item flags
+    /**
+      * Return item flags for a given index
+      * @param index Model index
+      * @return Qt::ItemFlags (e.g. selectable, editable)
       */
-    Qt::ItemFlags flags( const QModelIndex& index ) const;
+    Qt::ItemFlags flags(const QModelIndex& index) const override;
 
-
-    /** Standard function used by Qt internally.
+    /**
+      * Return header data for columns
+      * @param section    Column number
+      * @param orientation Horizontal/Vertical
+      * @param role       Qt role
+      * @return QVariant with header text or empty
       */
-    QVariant headerData( int section, Qt::Orientation orientation, int role ) const;
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
-
-    /** Get a valid QModelIndex for a location in the tree (row is the row in the tree under "parent"
-      * or under the root of the tree if parent isnt specified. Column is either 0 = "Part" or 1 = "Visible" 
-      * in this example 
-      * @param row is the item index
-      * @param column is 0 or 1 - part name or visible stringstream
-      * @param parent where the row is referenced from, usually the tree root
-      * @return the QModelIndex structure
-     */
-    QModelIndex index( int row, int column, const QModelIndex& parent ) const;
-
-
-    /** Take a QModelIndex for an item, get a QModel Index for its parent
-      * @param index of item
-      * @return index of parent
+    /**
+      * Create a QModelIndex for the given row, column, under parent
+      * @param row    Row number
+      * @param column Column number
+      * @param parent Parent index (or root)
+      * @return QModelIndex for the requested item or invalid if out of range
       */
-    QModelIndex parent( const QModelIndex& index ) const;
+    QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
 
-    /** Get number of rows (items) under an item in tree
-      *  @param is the parent, all items under this will be counted
-      *  @return number of children
+    /**
+      * Given a child index, return its parent index
+      * @param index Child index
+      * @return Parent index or invalid for root-level items
       */
-    int rowCount( const QModelIndex& parent ) const;
+    QModelIndex parent(const QModelIndex& index) const override;
 
-    /** Get a pointer to the root item of the tree
-      * @return the root item pointer
+    /**
+      * Return number of rows (children) under a given parent index
+      * @param parent QModelIndex of parent (invalid for root)
+      * @return Number of child items
+      */
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+
+    /**
+      * Get pointer to the root item
+      * @return ModelPart* pointing to root
       */
     ModelPart* getRootItem();
 
     /**
+      * Append a new child to the root item
+      * @param data List of QVariant for new child's columns
+      * @return QModelIndex of the newly created item
       */
-    QModelIndex appendChild( QModelIndex& parent, const QList<QVariant>& data );
+    QModelIndex appendChild(const QList<QVariant>& data);
 
+    /**
+      * Append a new child under a specified parent index
+      * @param parent QModelIndex under which to insert
+      * @param data   List of QVariant for new child's columns
+      * @return QModelIndex of the newly created item
+      */
+    QModelIndex appendChild(QModelIndex& parent, const QList<QVariant>& data);
+
+    /**
+      * Remove rows from the model (override)
+      * @param row    First row to remove
+      * @param count  Number of rows to remove
+      * @param parent Parent index
+      * @return true if removal succeeded
+      */
     bool removeRows(int row, int count, const QModelIndex& parent = QModelIndex()) override;
-    bool removeRow(int row, const QModelIndex& parent = QModelIndex()); // no override here
+
+    /**
+      * Convenience to remove a single row
+      * @param row    Row to remove
+      * @param parent Parent index
+      * @return true if removal succeeded
+      */
+    bool removeRow(int row, const QModelIndex& parent = QModelIndex());
+
+    /**
+      * Retrieve ModelPart* from a QModelIndex
+      * @param index QModelIndex of item
+      * @return Pointer to ModelPart or root if index invalid
+      */
     ModelPart* getItem(const QModelIndex& index) const;
 
-
-
-
 private:
-    ModelPart *rootItem;    /**< This is a pointer to the item at the base of the tree */
+    ModelPart* rootItem;   /**< The hidden root item at base of tree */
 };
-#endif
 
+#endif // VIEWER_MODELPARTLIST_H  

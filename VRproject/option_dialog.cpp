@@ -17,6 +17,7 @@ Option_Dialog::Option_Dialog(QWidget* parent)
     connect(ui->colorButton, &QPushButton::clicked, this, &Option_Dialog::on_colorButton_clicked);
 }
 
+
 Option_Dialog::~Option_Dialog() {
     delete ui;
 }
@@ -34,7 +35,7 @@ void Option_Dialog::setModelPart(ModelPart* part) {
 
     selectedColor = part->getColor();
 
-    ui->checkBox->setChecked(part->Visible());
+    ui->checkBox->setChecked(part->visible());
 
     updateColorPreview();
 }

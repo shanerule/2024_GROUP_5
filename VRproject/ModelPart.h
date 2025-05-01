@@ -1,172 +1,150 @@
-/**     @file ModelPart.h
+/**
+  *  @file ModelPart.h
   *
-  *     EEEE2076 - Software Engineering & VR Project
+  *  EEEE2076 - Software Engineering & VR Project
   *
-  *     Template for model parts that will be added as treeview items
+  *  Template for model parts that will be added as treeview items
   *
-  *     P Evans 2022
+  *  P Evans 2022
   */
 
-#ifndef VIEWER_MODELPART_H
-#define VIEWER_MODELPART_H
+#ifndef VIEWER_MODELPART_H  
+#define VIEWER_MODELPART_H  
 
-#pragma once
-#include <QString>
-#include <QList>
-#include <QVariant>
-#include <QColor>
-#include <QBrush>
+#pragma once  
 
-  /* VTK headers - will be needed when VTK used in next worksheet,
-   * commented out for now
-   *
-   * Note that there are a few function definitions and variables
-   * commented out below - this is because you haven't yet installed
-   * the VTK library which is needed.
-   */
-#include <vtkSmartPointer.h>
-#include <vtkMapper.h>
-#include <vtkActor.h>
-#include <vtkSTLReader.h>
-#include <vtkColor.h>
+#include <QString>  
+#include <QList>  
+#include <QVariant>  
+#include <QColor>  
+#include <QBrush>  
+
+  /* VTK headers - needed once VTK library is installed */
+#include <vtkSmartPointer.h>  
+#include <vtkSTLReader.h>  
+#include <vtkPolyDataMapper.h>  
+#include <vtkActor.h>  
 #include <vtkAlgorithm.h>  
 
 class ModelPart {
 public:
-    /** Constructor
-     * @param data is a List (array) of strings for each property of this item (part name and visiblity in our case
-     * @param parent is the parent of this item (one level up in tree)
-     */
+    /**
+      * Constructor
+      * @param data   List of QVariant for each property (e.g., part name and visibility)
+      * @param parent Parent item in the tree (nullptr for root)
+      */
     ModelPart(const QList<QVariant>& data, ModelPart* parent = nullptr);
 
-    /** Destructor
-      * Needs to free array of child items
+    /**
+      * Destructor
+      * Frees child items and deletes VTK actor if present
       */
     ~ModelPart();
 
-
-
-    /** Add a child to this item.
-      * @param item Pointer to child object (must already be allocated using new)
+    /**
+      * Add a child item under this part
+      * @param item Pointer to already-allocated ModelPart
       */
     void appendChild(ModelPart* item);
 
-    /** Return child at position 'row' below this item
-      * @param row is the row number (below this item)
-      * @return pointer to the item requested.
+    /**
+      * Get child at given row
+      * @param row Index of child
+      * @return Pointer to child or nullptr if out of range
       */
     ModelPart* child(int row);
 
-    /** Return number of children to this item
-      * @return number of children
+    /**
+      * Number of children under this part
       */
-    int childCount() const;         /* Note on the 'const' keyword - it means that this function is valid for
-                                     * constant instances of this class. If a class is declared 'const' then it
-                                     * cannot be modifed, this means that 'set' type functions are usually not
-                                     * valid, but 'get' type functions are.
-                                     */
+    int childCount() const;
 
-                                     /** Get number of data items (2 - part name and visibility string) in this case.
-                                       * @return number of visible data columns
-                                       */
+    /**
+      * Number of data columns (e.g., name + visibility)
+      */
     int columnCount() const;
 
-    /** Return the data item at a particular column for this item.
-      * i.e. either part name of visibility
-      * used by Qt when displaying tree
-      * @param column is column index
-      * @return the QVariant (represents string)
+    /**
+      * Data accessor for Qt tree view
+      * @param column Column index
+      * @param role   Qt display/background/foreground roles
       */
-      //QVariant data(int column) const;
     QVariant data(int column, int role = Qt::DisplayRole) const;
 
-    /** Default function required by Qt to allow setting of part
-      * properties within treeview.
-      * @param column is the index of the property to set
-      * @param value is the value to apply
+    /**
+      * Set data in a given column (used by Qt for editing)
+      * @param column Column index
+      * @param value  New QVariant value
       */
     void set(int column, const QVariant& value);
-    /** Get pointer to parent item
-      * @return pointer to parent item
+
+    /**
+      * Get parent item pointer
       */
     ModelPart* parentItem();
 
-    /** Get row index of item, relative to parent item
-      * @return row index
+    /**
+      * Get this item's row index under its parent
       */
     int row() const;
 
-
-    /** Set colour
-      * (0-255 RGB values as ints)
+    /**
+      * Get and set the background colour used in the tree view
       */
-      //void setColour(unsigned char R, unsigned char G, unsigned char B);  // ✅ Corrected
-    //void setColor(const QColor& color);
-    //unsigned char getColourR() const;
-    //unsigned char getColourG() const;
-    //unsigned char getColourB() const;
-
     QColor getColor() const;
     void setColor(const QColor& color);
 
+    /**
+      * Show or hide this part
+      * @param Visible True = visible, False = hidden
+      */
+    void setVisible(bool visible);
+    bool visible() const;
 
-    /** Set visible flag
-      * @param isVisible sets visible/non-visible
+    vtkAlgorithm* getSource() const;
+    /**
+      * Change this part's name (stored in column 0)
       */
-    void setVisible(bool Visible);
-    /** Get visible flag
-      * @return visible flag as boolean
-      */
-    bool Visible() const;
-    /** Load STL file
-      * @param fileName
+    void setName(const QString& newName);
+
+    /**
+      * Load an STL file into this part's VTK pipeline
+      * @param fileName Path to .stl file
       */
     void loadSTL(QString fileName);
 
-    /** Return actor
-      * @return pointer to default actor for GUI rendering
+    /**
+      * Return the VTK actor for GUI rendering
       */
-      //vtkSmartPointer<vtkActor> getActor();
-
-      /** Return new actor for use in VR
-        * @return pointer to new actor
-        */
-        //vtkActor* getNewActor();
-
-    //QColor color() const;
-    void setName(const QString& newName);
-    void applyClipFilter();      // Apply Clip
-    void removeClipFilter();     // Remove Clip
-    void applyShrinkFilter();    // Apply Shrink
-    void removeShrinkFilter();   // Remove Shrink
     vtkSmartPointer<vtkActor> getActor() const;
+
+    /**
+      * Remove a single child at given row (does not delete actor)
+      */
     void removeChild(int row);
 
+    /**
+      * Apply and remove various VTK filters on the mesh:
+      */
+    void applyClipFilter();      // Clip half by plane  
+    void removeClipFilter();     // Restore unclipped mesh  
+    void applyShrinkFilter();    // Shrink cells  
+    void removeShrinkFilter();   // Restore original mesh  
+
 private:
-    QList<ModelPart*>                           m_childItems;       /**< List (array) of child items */
-    QList<QVariant>                             m_itemData;         /**< List (array of column data for item */
-    ModelPart* m_parentItem;       /**< Pointer to parent */
-    QColor partColor;
-    QColor color; 
-    QVector<QVariant> data_;
-    unsigned char colorR, colorG, colorB;
+    QList<ModelPart*>              m_childItems;     /**< Child items */
+    QList<QVariant>                m_itemData;       /**< Column data */
+    ModelPart* m_parentItem;     /**< Parent pointer */
+    QColor                         partColor;        /**< Background color */
+    bool                           isVisible;        /**< Visibility flag */
+    bool                           clipFilterActive; /**< Clip state */
+    bool                           shrinkFilterActive;/**< Shrink state */
 
-
-    /* These are some typical properties that I think the part will need, you might
-     * want to add you own.
-     */
-    bool                                        isVisible;          /**< True/false to indicate if should be visible in model rendering */
-    bool clipFilterActive = false;
-    bool shrinkFilterActive = false;
-    /* These are vtk properties that will be used to load/render a model of this part,
-     * commented out for now but will be used later
-     */
-    vtkSmartPointer<vtkSTLReader>               file;               /**< Datafile from which part loaded */
-    vtkSmartPointer<vtkMapper>                  mapper;             /**< Mapper for rendering */
-    vtkSmartPointer<vtkActor>                   actor;              /**< Actor for rendering */
-    vtkSmartPointer<vtkAlgorithm> currentFilter;
-
+    // VTK pipeline objects  
+    vtkSmartPointer<vtkSTLReader>  file;             /**< STL reader */
+    vtkSmartPointer<vtkPolyDataMapper> mapper;       /**< Mesh mapper */
+    vtkSmartPointer<vtkActor>      actor;            /**< Render actor */
+    vtkSmartPointer<vtkAlgorithm>  currentFilter;    /**< Last-applied filter */
 };
 
-
-#endif
+#endif // VIEWER_MODELPART_H  
