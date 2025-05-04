@@ -1,76 +1,111 @@
-﻿/**
-  *  @file ModelPart.cpp
-  *
-  *  EEEE2076 - Software Engineering & VR Project
-  *
-  *  Template for model parts that will be added as treeview items
-  *
-  *  P Evans 2022
-  */
+﻿// @file ModelPart.cpp
+//
+// EEEE2076 - Software Engineering & VR Project
+//
+// Template for model parts that will be added as treeview items
+//
+// P Evans 2022
 
-#include "ModelPart.h"  
-#include <QDebug>  
+// --------------------------------------- Includes ---------------------------------------
 
-  /* VTK includes: ensure all necessary filters, normals, mappers and readers are available */
-#include <vtkSmartPointer.h>  
-#include <vtkSTLReader.h>  
-#include <vtkPolyDataMapper.h>  
-#include <vtkPolyDataNormals.h>  
-#include <vtkPlane.h>  
-#include <vtkClipPolyData.h>  
-#include <vtkCleanPolyData.h>  
-#include <vtkShrinkPolyData.h>  
+#include "ModelPart.h"
+#include <QDebug>
+
+// VTK headers for rendering, filters, and geometry processing
+#include <vtkSmartPointer.h>
+#include <vtkSTLReader.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkPolyDataNormals.h>
+#include <vtkPlane.h>
+#include <vtkClipPolyData.h>
+#include <vtkCleanPolyData.h>
+#include <vtkShrinkPolyData.h>
 #include <vtkProperty.h>
+#include <vtkClipClosedSurface.h>
+#include <vtkClipDataSet.h>
+#include <vtkShrinkFilter.h>
+#include <vtkGeometryFilter.h>
+#include <vtkPlaneCollection.h>
 
+// --------------------------------------- Constructor & Destructor ---------------------------------------
+
+// Constructs a new ModelPart with optional parent and default values
 ModelPart::ModelPart(const QList<QVariant>& data, ModelPart* parent)
-    : m_itemData(data), m_parentItem(parent), isVisible(true), clipFilterActive(false), shrinkFilterActive(false)
+    : m_itemData(data), m_parentItem(parent), isVisible(true)
 {
-    partColor = QColor(255, 255, 255);
-    /* You probably want to give the item a default colour */
+    partColor = QColor(255, 255, 255); // Default white color
+    clipEnabled = false;
+    shrinkEnabled = false;
+    shrinkFactor = 0.8;
+    clipOrigin[0] = clipOrigin[1] = clipOrigin[2] = 0.0;
+    clipNormal[0] = -1.0; clipNormal[1] = 0.0; clipNormal[2] = 0.0;
 }
 
+// Destroys the ModelPart and all its children, deletes actor if present
 ModelPart::~ModelPart()
 {
-    // First, delete child items, ensuring no invalid memory access  
     qDeleteAll(m_childItems);
     m_childItems.clear();
 
-    // If the actor is set, delete it safely  
     if (actor) {
         actor->Delete();
-        actor = nullptr;  // Avoid dangling pointer  
+        actor = nullptr;
     }
 }
 
+// --------------------------------------- Tree Methods ---------------------------------------
+
+// Adds a child ModelPart to this item
 void ModelPart::appendChild(ModelPart* item)
 {
-    /* Add another model part as a child of this part
-     * (it will appear as a sub-branch in the treeview)
-     */
     item->m_parentItem = this;
     m_childItems.append(item);
 }
 
+// Returns the child ModelPart at the given row
 ModelPart* ModelPart::child(int row)
 {
-    /* Return pointer to child item in row below this item. */
     if (row < 0 || row >= m_childItems.size())
         return nullptr;
     return m_childItems.at(row);
 }
 
+// Returns the number of children
 int ModelPart::childCount() const
 {
-    /* Count number of child items */
     return m_childItems.count();
 }
 
+// Returns the number of columns in this item's data
 int ModelPart::columnCount() const
 {
-    /* Count number of columns (properties) that this item has. */
     return m_itemData.count();
 }
 
+// Returns the parent ModelPart
+ModelPart* ModelPart::parentItem()
+{
+    return m_parentItem;
+}
+
+// Returns the index of this item under its parent
+int ModelPart::row() const
+{
+    if (m_parentItem)
+        return m_parentItem->m_childItems.indexOf(const_cast<ModelPart*>(this));
+    return 0;
+}
+
+// Removes a child from the given row index
+void ModelPart::removeChild(int row)
+{
+    if (row >= 0 && row < m_childItems.size())
+        m_childItems.removeAt(row);
+}
+
+// --------------------------------------- Data & Property Access ---------------------------------------
+
+// Returns data for a given column and role (used by Qt tree view)
 QVariant ModelPart::data(int column, int role) const
 {
     if (column < 0 || column >= m_itemData.size())
@@ -80,59 +115,47 @@ QVariant ModelPart::data(int column, int role) const
         return m_itemData.at(column);
 
     if (role == Qt::BackgroundRole && partColor.isValid()) {
-        qDebug() << "Applying background color to row" << row()
-            << "Color:" << partColor;
-        return QBrush(partColor);  // Return a QBrush for background  
+        qDebug() << "Applying background color to row" << row() << "Color:" << partColor;
+        return QBrush(partColor);
     }
 
     if (role == Qt::ForegroundRole)
-        return QBrush(Qt::black);  // Optional: change text color  
+        return QBrush(Qt::black);
 
     return QVariant();
 }
 
+// Sets the data in the specified column
 void ModelPart::set(int column, const QVariant& value)
 {
-    /* Set the data associated with a column of this item */
     if (column < 0 || column >= m_itemData.size())
         return;
     m_itemData.replace(column, value);
 }
 
-ModelPart* ModelPart::parentItem()
-{
-    return m_parentItem;
-}
-
-int ModelPart::row() const
-{
-    /* Return the row index of this item, relative to its parent. */
-    if (m_parentItem)
-        return m_parentItem->m_childItems.indexOf(const_cast<ModelPart*>(this));
-    return 0;
-}
-
-QColor ModelPart::getColor() const
-{
-    return partColor;
-}
-
-void ModelPart::setColor(const QColor& color)
-{
-    partColor = color;
-    // Apply color to the VTK actor if present  
-    if (actor)
-        actor->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
-}
-
+// Sets the display name of this part (column 0)
 void ModelPart::setName(const QString& newName)
 {
     set(0, newName);
 }
 
+// Returns the color assigned to this part
+QColor ModelPart::getColor() const
+{
+    return partColor;
+}
+
+// Sets the background color and updates the actor's visual color
+void ModelPart::setColor(const QColor& color)
+{
+    partColor = color;
+    if (actor)
+        actor->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
+}
+
+// Sets visibility flag and updates actor visibility
 void ModelPart::setVisible(bool visible)
 {
-    /* Toggle visibility flag and update both the tree and the actor */
     isVisible = visible;
     set(1, visible ? "true" : "false");
 
@@ -145,200 +168,162 @@ void ModelPart::setVisible(bool visible)
     }
 }
 
+// Returns whether this part is visible
 bool ModelPart::visible() const
 {
     return isVisible;
 }
 
-vtkAlgorithm* ModelPart::getSource() const
-{
-    // currentFilter points at either the reader or the last‐applied filter
-    return currentFilter.Get();
-}
+// --------------------------------------- STL Loading ---------------------------------------
 
-/*void ModelPart::loadSTL(QString fileName)
-{
-    // Create and run STL reader  
-    vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
-    reader->SetFileName(fileName.toStdString().c_str());
-    reader->Update();
-
-    // Generate surface normals (needed for correct lighting)  
-    vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
-    normals->SetInputConnection(reader->GetOutputPort());
-    normals->ConsistencyOn();
-    normals->AutoOrientNormalsOn();
-    normals->Update();
-
-    // Create mapper linked to normals output  
-    mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->SetInputConnection(normals->GetOutputPort());
-
-    // Create actor linked to mapper  
-    actor = vtkSmartPointer<vtkActor>::New();
-    actor->SetMapper(mapper);
-    actor->GetProperty()->SetColor(0.9, 0.0, 0.0); // Default: reddish  
-
-    // Store reader as the base filter for later  
-    file = reader;
-    currentFilter = reader;
-}*/
-
+// Loads an STL file and initializes the VTK pipeline
 void ModelPart::loadSTL(QString fileName)
 {
-    // Read STL file
-    vtkSmartPointer<vtkSTLReader> reader = vtkSmartPointer<vtkSTLReader>::New();
+    auto reader = vtkSmartPointer<vtkSTLReader>::New();
     reader->SetFileName(fileName.toStdString().c_str());
     reader->Update();
 
-    // Generate normals
-    vtkSmartPointer<vtkPolyDataNormals> normals = vtkSmartPointer<vtkPolyDataNormals>::New();
-    normals->SetInputConnection(reader->GetOutputPort());
-    normals->AutoOrientNormalsOn();
-    normals->ConsistencyOn();
-    normals->ComputePointNormalsOn();
-    normals->Update();
+    auto polyData = reader->GetOutput();
+    if (!polyData || polyData->GetNumberOfPoints() == 0 || polyData->GetNumberOfCells() == 0) {
+        qWarning() << "STL load failed or empty: " << fileName;
+        actor = nullptr;
+        return;
+    }
 
-    // Set mapper
-    mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->SetInputConnection(normals->GetOutputPort());
+    originalData = vtkSmartPointer<vtkPolyData>::New();
+    originalData->DeepCopy(polyData);
 
-    // Set actor
-    actor = vtkSmartPointer<vtkActor>::New();
-    actor->SetMapper(mapper);
-
-    // Balanced material that responds to light changes
-    vtkSmartPointer<vtkProperty> prop = actor->GetProperty();
-    prop->SetColor(0.7, 0.7, 0.7);        // Light gray (not fully white)
-    prop->SetDiffuse(0.8);               // Reflects directional light
-    prop->SetAmbient(0.2);               // Base brightness
-    prop->SetSpecular(0.3);              // Some shine
-    prop->SetSpecularPower(15);          // Soft highlight
-    prop->LightingOn();                  // Ensure lighting is enabled
-
-    // Optional: Center object
-    double bounds[6];
-    normals->GetOutput()->GetBounds(bounds);
-    double center[3] = {
-        (bounds[0] + bounds[1]) / 2.0,
-        (bounds[2] + bounds[3]) / 2.0,
-        (bounds[4] + bounds[5]) / 2.0
-    };
-    //actor->SetPosition(-center[0], -center[1], -center[2]);
-
-    // Store reader and filter for later use
     file = reader;
     currentFilter = reader;
+
+    mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mapper->SetInputData(originalData);
+
+    actor = vtkSmartPointer<vtkActor>::New();
+    actor->SetMapper(mapper);
+    actor->GetProperty()->SetColor(partColor.redF(), partColor.greenF(), partColor.blueF());
+
+    updateFilters();
 }
 
+// --------------------------------------- VTK Actor Access ---------------------------------------
 
-
-
+// Returns the main rendering actor
 vtkSmartPointer<vtkActor> ModelPart::getActor() const
 {
     return actor;
 }
 
-void ModelPart::applyClipFilter()
+// Returns the current VTK source or filter
+vtkAlgorithm* ModelPart::getSource() const
 {
-    if (!file) return;
-
-    // Compute model center for clipping plane  
-    double bounds[6];
-    file->GetOutput()->GetBounds(bounds);
-    double cx = (bounds[0] + bounds[1]) / 2.0;
-    double cy = (bounds[2] + bounds[3]) / 2.0;
-    double cz = (bounds[4] + bounds[5]) / 2.0;
-
-    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
-    plane->SetOrigin(cx, cy, cz);
-    plane->SetNormal(1.0, 0.0, 0.0);  // Clip along X  
-
-    // Clip -> Clean pipeline  
-    auto clipFilter = vtkSmartPointer<vtkClipPolyData>::New();
-    clipFilter->SetInputConnection(currentFilter->GetOutputPort());
-    clipFilter->SetClipFunction(plane);
-    clipFilter->Update();
-
-    auto cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
-    cleanFilter->SetInputConnection(clipFilter->GetOutputPort());
-    cleanFilter->Update();
-
-    // Update mapper & actor  
-    currentFilter = cleanFilter;
-    mapper->SetInputConnection(currentFilter->GetOutputPort());
-    actor->SetMapper(mapper);
-    clipFilterActive = true;
+    return currentFilter.Get();
 }
 
-void ModelPart::removeClipFilter()
+// Returns the output port of the last-applied VTK filter
+vtkAlgorithmOutput* ModelPart::getOutputPort() const
 {
-    if (!file) return;
-    // Restore original geometry  
-    mapper->SetInputConnection(file->GetOutputPort());
-    actor->SetMapper(mapper);
-    clipFilterActive = false;
+    if (clipEnabled && clipFilter)
+        return clipFilter->GetOutputPort();
+    if (shrinkEnabled && shrinkFilter)
+        return shrinkFilter->GetOutputPort();
+    return originalNormalsFilter->GetOutputPort();
 }
 
-void ModelPart::applyShrinkFilter()
+// Creates and returns a duplicate actor for VR rendering
+vtkSmartPointer<vtkActor> ModelPart::getVRActor()
 {
-    if (!file) return;
+    if (!mapper || !actor)
+        return nullptr;
 
-    // Shrink -> Clean pipeline  
-    auto shrinkFilter = vtkSmartPointer<vtkShrinkPolyData>::New();
-    shrinkFilter->SetInputConnection(currentFilter->GetOutputPort());
-    shrinkFilter->SetShrinkFactor(0.8);
-    shrinkFilter->Update();
+    auto vrMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    vrMapper->SetInputConnection(mapper->GetInputConnection(0, 0));
 
-    auto cleanFilter = vtkSmartPointer<vtkCleanPolyData>::New();
-    cleanFilter->SetInputConnection(shrinkFilter->GetOutputPort());
-    cleanFilter->Update();
+    auto vrActor = vtkSmartPointer<vtkActor>::New();
+    vrActor->SetMapper(vrMapper);
+    vrActor->SetProperty(actor->GetProperty());
+    vrActor->SetVisibility(isVisible ? 1 : 0);
+    vrActor->SetUserMatrix(actor->GetUserMatrix());
 
-    // Update mapper & actor  
-    currentFilter = cleanFilter;
-    mapper->SetInputConnection(currentFilter->GetOutputPort());
-    actor->SetMapper(mapper);
-    shrinkFilterActive = true;
+    if (actor->GetTexture()) {
+        vrActor->SetTexture(actor->GetTexture());
+    }
+
+    return vrActor;
 }
 
-void ModelPart::removeShrinkFilter()
+// --------------------------------------- Filter Application ---------------------------------------
+
+// Enables/disables the clip filter with given plane
+void ModelPart::applyClipFilter(bool enable, double origin[3], double normal[3])
 {
-    if (!file) return;
-    // Restore original geometry  
-    mapper->SetInputConnection(file->GetOutputPort());
-    actor->SetMapper(mapper);
-    shrinkFilterActive = false;
+    clipEnabled = enable;
+    if (enable) {
+        for (int i = 0; i < 3; i++) {
+            clipOrigin[i] = origin[i];
+            clipNormal[i] = normal[i];
+        }
+    }
+    updateFilters();
 }
 
-void ModelPart::removeChild(int row)
+// Enables/disables shrink filter and sets the factor
+void ModelPart::applyShrinkFilter(bool enable, double factor)
 {
-    if (row >= 0 && row < m_childItems.size())
-        m_childItems.removeAt(row);
+    shrinkEnabled = enable;
+    shrinkFactor = factor;
+    updateFilters();
 }
 
-//vtkActor* ModelPart::getNewActor() {
-/* This is a placeholder function that you will need to modify if you want to use it
-     *
-     * The default mapper/actor combination can only be used to render the part in
-     * the GUI, it CANNOT also be used to render the part in VR. This means you need
-     * to create a second mapper/actor combination for use in VR - that is the role
-     * of this function. */
+// Rebuilds the filter pipeline with currently active filters
+void ModelPart::updateFilters()
+{
+    if (!originalData || !mapper) return;
 
+    auto processedData = vtkSmartPointer<vtkPolyData>::New();
+    processedData->DeepCopy(originalData);
 
-     /* 1. Create new mapper */
+    if (shrinkEnabled) {
+        if (!shrinkFilter) shrinkFilter = vtkSmartPointer<vtkShrinkFilter>::New();
+        shrinkFilter->SetInputData(processedData);
+        shrinkFilter->SetShrinkFactor(shrinkFactor);
+        shrinkFilter->Update();
 
-     /* 2. Create new actor and link to mapper */
+        auto geometryFilter = vtkSmartPointer<vtkGeometryFilter>::New();
+        geometryFilter->SetInputConnection(shrinkFilter->GetOutputPort());
+        geometryFilter->Update();
+        processedData->DeepCopy(geometryFilter->GetOutput());
+    }
 
-     /* 3. Link the vtkProperties of the original actor to the new actor. This means
-           *    if you change properties of the original part (colour, position, etc), the
-           *    changes will be reflected in the GUI AND VR rendering.
-           *
-           *    See the vtkActor documentation, particularly the GetProperty() and SetProperty()
-           *    functions.
-           */
+    if (clipEnabled) {
+        auto clipper = vtkSmartPointer<vtkClipClosedSurface>::New();
+        auto plane = vtkSmartPointer<vtkPlane>::New();
+        plane->SetOrigin(clipOrigin);
+        plane->SetNormal(clipNormal);
+        auto planes = vtkSmartPointer<vtkPlaneCollection>::New();
+        planes->AddItem(plane);
 
+        clipper->SetInputData(processedData);
+        clipper->SetClippingPlanes(planes);
+        clipper->GenerateFacesOn();
+        clipper->Update();
 
-           /* The new vtkActor pointer must be returned here */
-           //    return nullptr;
+        processedData->DeepCopy(clipper->GetOutput());
+    }
 
-           //}
+    mapper->SetInputData(processedData);
+    mapper->Update();
+    if (actor) actor->SetMapper(mapper);
+}
+
+// --------------------------------------- Filter Status ---------------------------------------
+
+// Returns true if clip filter is enabled
+bool ModelPart::isClipFilterEnabled() const {
+    return clipEnabled;
+}
+
+// Returns true if shrink filter is enabled
+bool ModelPart::isShrinkFilterEnabled() const {
+    return shrinkEnabled;
+}

@@ -1,150 +1,171 @@
-/**
-  *  @file ModelPart.h
-  *
-  *  EEEE2076 - Software Engineering & VR Project
-  *
-  *  Template for model parts that will be added as treeview items
-  *
-  *  P Evans 2022
-  */
+// @file ModelPart.h
+//
+// EEEE2076 - Software Engineering & VR Project
+//
+// Template for model parts that will be added as treeview items
+//
+// P Evans 2022
 
 #ifndef VIEWER_MODELPART_H  
 #define VIEWER_MODELPART_H  
 
 #pragma once  
 
-#include <QString>  
-#include <QList>  
-#include <QVariant>  
-#include <QColor>  
-#include <QBrush>  
+// --------------------------------------- Qt Headers ---------------------------------------
 
-  /* VTK headers - needed once VTK library is installed */
-#include <vtkSmartPointer.h>  
-#include <vtkSTLReader.h>  
-#include <vtkPolyDataMapper.h>  
-#include <vtkActor.h>  
-#include <vtkAlgorithm.h>  
+#include <QString>        // For part names and file paths
+#include <QList>          // For storing child items
+#include <QVariant>       // For storing heterogeneous tree data
+#include <QColor>         // For storing/displaying part color
+#include <QBrush>         // For use with Qt display roles (e.g., tree view background)
+
+// --------------------------------------- VTK Headers ---------------------------------------
+
+#include <vtkSmartPointer.h>      // Smart pointer wrapper for VTK objects
+#include <vtkSTLReader.h>         // Reads .stl mesh files
+#include <vtkPolyDataMapper.h>    // Maps polygonal data to graphics primitives
+#include <vtkActor.h>             // Represents an object in the scene
+#include <vtkAlgorithm.h>         // Base class for all VTK pipeline components
+#include <vtkClipDataSet.h>       // Clips mesh geometry with a plane
+#include <vtkShrinkFilter.h>      // Shrinks cells in the mesh
+#include <vtkPlane.h>             // Defines clipping planes
+#include <vtkPolyData.h>          // Stores polygonal mesh data
+#include <vtkGeometryFilter.h>    // Converts non-poly data to polygonal form
+#include <vtkPolyDataNormals.h>   // Computes surface normals for shading
 
 class ModelPart {
 public:
-    /**
-      * Constructor
-      * @param data   List of QVariant for each property (e.g., part name and visibility)
-      * @param parent Parent item in the tree (nullptr for root)
-      */
+
+    // --------------------------------------- Constructor & Destructor ---------------------------------------
+
+        // Constructs a ModelPart with given data and optional parent
     ModelPart(const QList<QVariant>& data, ModelPart* parent = nullptr);
 
-    /**
-      * Destructor
-      * Frees child items and deletes VTK actor if present
-      */
+    // Destructor that cleans up child items and VTK resources
     ~ModelPart();
 
-    /**
-      * Add a child item under this part
-      * @param item Pointer to already-allocated ModelPart
-      */
+    // --------------------------------------- Tree Structure Methods ---------------------------------------
+
+        // Adds a child part to this part
     void appendChild(ModelPart* item);
 
-    /**
-      * Get child at given row
-      * @param row Index of child
-      * @return Pointer to child or nullptr if out of range
-      */
+    // Returns the child part at the given row
     ModelPart* child(int row);
 
-    /**
-      * Number of children under this part
-      */
+    // Returns the number of children
     int childCount() const;
 
-    /**
-      * Number of data columns (e.g., name + visibility)
-      */
+    // Returns the number of columns in the data
     int columnCount() const;
 
-    /**
-      * Data accessor for Qt tree view
-      * @param column Column index
-      * @param role   Qt display/background/foreground roles
-      */
-    QVariant data(int column, int role = Qt::DisplayRole) const;
-
-    /**
-      * Set data in a given column (used by Qt for editing)
-      * @param column Column index
-      * @param value  New QVariant value
-      */
-    void set(int column, const QVariant& value);
-
-    /**
-      * Get parent item pointer
-      */
+    // Returns the parent of this item
     ModelPart* parentItem();
 
-    /**
-      * Get this item's row index under its parent
-      */
+    // Returns this item's index under its parent
     int row() const;
 
-    /**
-      * Get and set the background colour used in the tree view
-      */
-    QColor getColor() const;
-    void setColor(const QColor& color);
-
-    /**
-      * Show or hide this part
-      * @param Visible True = visible, False = hidden
-      */
-    void setVisible(bool visible);
-    bool visible() const;
-
-    vtkAlgorithm* getSource() const;
-    /**
-      * Change this part's name (stored in column 0)
-      */
-    void setName(const QString& newName);
-
-    /**
-      * Load an STL file into this part's VTK pipeline
-      * @param fileName Path to .stl file
-      */
-    void loadSTL(QString fileName);
-
-    /**
-      * Return the VTK actor for GUI rendering
-      */
-    vtkSmartPointer<vtkActor> getActor() const;
-
-    /**
-      * Remove a single child at given row (does not delete actor)
-      */
+    // Removes the child at the specified row
     void removeChild(int row);
 
-    /**
-      * Apply and remove various VTK filters on the mesh:
-      */
-    void applyClipFilter();      // Clip half by plane  
-    void removeClipFilter();     // Restore unclipped mesh  
-    void applyShrinkFilter();    // Shrink cells  
-    void removeShrinkFilter();   // Restore original mesh  
+    // --------------------------------------- Data Handling ---------------------------------------
+
+        // Returns the data stored at a column (used in Qt views)
+    QVariant data(int column, int role = Qt::DisplayRole) const;
+
+    // Sets the value for a specific column
+    void set(int column, const QVariant& value);
+
+    // Sets the display name of this part (column 0)
+    void setName(const QString& newName);
+
+    // --------------------------------------- Visual Properties ---------------------------------------
+
+        // Returns the current background color of the item
+    QColor getColor() const;
+
+    // Sets the background color of the item
+    void setColor(const QColor& color);
+
+    // Sets the visibility of the part in the scene
+    void setVisible(bool visible);
+
+    // Returns the visibility status
+    bool visible() const;
+
+    // --------------------------------------- VTK Source & Actor Access ---------------------------------------
+
+        // Returns the VTK actor used for rendering
+    vtkSmartPointer<vtkActor> getActor() const;
+
+    // Returns the VTK data source (e.g., STL reader)
+    vtkAlgorithm* getSource() const;
+
+    // Returns the output port from the current pipeline stage
+    vtkAlgorithmOutput* getOutputPort() const;
+
+    // Returns a separate actor for VR rendering
+    vtkSmartPointer<vtkActor> getVRActor();
+
+    // --------------------------------------- STL Loading ---------------------------------------
+
+        // Loads an STL file and sets up the rendering pipeline
+    void loadSTL(QString fileName);
+
+    // --------------------------------------- Filter Handling ---------------------------------------
+
+        // Enables/disables clip filter with given origin and normal
+    void applyClipFilter(bool enable, double origin[3], double normal[3]);
+
+    // Enables/disables shrink filter with specified factor
+    void applyShrinkFilter(bool enable, double factor);
+
+    // Returns true if clip filter is active
+    bool isClipFilterEnabled() const;
+
+    // Returns true if shrink filter is active
+    bool isShrinkFilterEnabled() const;
+
+    // Updates the filter chain based on active filters
+    void updateFilters();
+
+    // --------------------------------------- Original Data Backup ---------------------------------------
+
+        // Checks if original (unfiltered) polydata exists
+    bool hasOriginalData() const;
+
+    // Stores the original polydata before any filtering
+    void storeOriginalData();
+
+    // Returns the original polydata
+    vtkSmartPointer<vtkPolyData> getOriginalPolyData() const;
 
 private:
-    QList<ModelPart*>              m_childItems;     /**< Child items */
-    QList<QVariant>                m_itemData;       /**< Column data */
-    ModelPart* m_parentItem;     /**< Parent pointer */
-    QColor                         partColor;        /**< Background color */
-    bool                           isVisible;        /**< Visibility flag */
-    bool                           clipFilterActive; /**< Clip state */
-    bool                           shrinkFilterActive;/**< Shrink state */
 
-    // VTK pipeline objects  
-    vtkSmartPointer<vtkSTLReader>  file;             /**< STL reader */
-    vtkSmartPointer<vtkPolyDataMapper> mapper;       /**< Mesh mapper */
-    vtkSmartPointer<vtkActor>      actor;            /**< Render actor */
-    vtkSmartPointer<vtkAlgorithm>  currentFilter;    /**< Last-applied filter */
+    // --------------------------------------- Member Variables ---------------------------------------
+
+    QList<ModelPart*>              m_childItems;     // List of children
+    QList<QVariant>                m_itemData;       // Column data (e.g., name, visibility)
+    ModelPart* m_parentItem;     // Parent in tree hierarchy
+    QColor                         partColor;        // Tree background color
+    bool                           isVisible;        // Visibility state
+
+    // VTK pipeline components
+    vtkSmartPointer<vtkSTLReader>         file;             // Reads STL file
+    vtkSmartPointer<vtkPolyDataMapper>    mapper;           // Maps geometry to graphics primitives
+    vtkSmartPointer<vtkActor>             actor;            // Represents object in scene
+    vtkSmartPointer<vtkAlgorithm>         currentFilter;    // Most recent filter in pipeline
+
+    vtkSmartPointer<vtkPolyData>          originalData;     // Cached original mesh
+    vtkSmartPointer<vtkPolyDataNormals>   originalNormalsFilter; // Computes normals
+
+    vtkSmartPointer<vtkClipDataSet>       clipFilter;       // Clip filter
+    vtkSmartPointer<vtkShrinkFilter>      shrinkFilter;     // Shrink filter
+
+    bool  clipEnabled;                                      // True if clip is active
+    bool  shrinkEnabled;                                    // True if shrink is active
+    double shrinkFactor;                                    // Shrink intensity
+    double clipOrigin[3];                                   // Plane origin for clip
+    double clipNormal[3];                                   // Plane normal for clip
 };
 
-#endif // VIEWER_MODELPART_H  
+#endif // VIEWER_MODELPART_H

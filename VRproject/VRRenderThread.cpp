@@ -1,17 +1,17 @@
-/** @file VRRenderThread.cpp
-  * @brief EEEE2046 - Software Engineering & VR Project
-  * Template to add VR rendering to your application.
-  * P Evans 2022
-  */
+// @file VRRenderThread.cpp
+// EEEE2046 - Software Engineering & VR Project
+// Adds a VR rendering thread using VTK and OpenVR
+// P Evans 2022
 
 #include "VRRenderThread.h"
 
-/* Vtk headers */
+// --------------------------------------- VTK Includes ---------------------------------------
+
 #include <vtkActor.h>
-#include <vtkOpenVRRenderWindow.h>				
-#include <vtkOpenVRRenderWindowInteractor.h>	
-#include <vtkOpenVRRenderer.h>					
-#include <vtkOpenVRCamera.h>	
+#include <vtkOpenVRRenderWindow.h>
+#include <vtkOpenVRRenderWindowInteractor.h>
+#include <vtkOpenVRRenderer.h>
+#include <vtkOpenVRCamera.h>
 
 #include <vtkNew.h>
 #include <vtkSmartPointer.h>
@@ -20,178 +20,155 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
 #include <vtkSTLReader.h>
-#include <vtkDataSetmapper.h>
+#include <vtkDataSetMapper.h>
 #include <vtkCallbackCommand.h>
 
-/**
- * @brief Constructor for the VRRenderThread class.
- * @param parent is a pointer to the parent QObject.
- */
-VRRenderThread::VRRenderThread( QObject* parent ) {
-	/* Initialise actor list */
-	actors = vtkActorCollection::New();
+#include <QMutexLocker>
 
-	/* Initialise command variables */
-	rotateX = 0.;
-	rotateY = 0.;
-	rotateZ = 0.;
+// --------------------------------------- Constructor ---------------------------------------
+
+// Initializes the actor collection and rotation values
+VRRenderThread::VRRenderThread(QObject* parent) {
+    actors = vtkActorCollection::New();
+    rotateX = 0.;
+    rotateY = 0.;
+    rotateZ = 0.;
 }
 
-/**
- * @brief Destructor for the VRRenderThread class.
- */
+// --------------------------------------- Destructor ---------------------------------------
+
 VRRenderThread::~VRRenderThread() {
-
+    // Empty — smart pointers handle cleanup
 }
 
-/**
- * @brief This function adds an actor to the actor collection.
- * @param actor is a pointer to the vtkActor to be added.
- */
-void VRRenderThread::addActorOffline( vtkActor* actor ) {
+// --------------------------------------- Add Actor Before Render Starts ---------------------------------------
 
-	/* Check to see if render thread is running */
-	if (!this->isRunning()) {
-		double* ac = actor->GetOrigin();
-	
-		/* I have found that these initial transforms will position the FS
-		 * car model in a sensible position but you can experiment
-		 */
-		actor->RotateX(-90);
-		actor->AddPosition(-ac[0]+0, -ac[1]-100, -ac[2]-200);
+// Adds an actor before the VR thread begins
+void VRRenderThread::addActorOffline(vtkActor* actor) {
+    if (!this->isRunning()) {
+        double* ac = actor->GetOrigin();
 
-		actors->AddItem(actor);
-	}
+        // Apply transform to place model in viewable position
+        actor->RotateX(-90);
+        actor->AddPosition(-ac[0] + 0, -ac[1] - 100, -ac[2] - 200);
+
+        actors->AddItem(actor);
+    }
 }
 
-/**
- * @brief This function issues a command to the VR thread.
- * @param cmd is the command to be issued.
- * @param value is the value associated with the command.
- */
-void VRRenderThread::issueCommand( int cmd, double value ) {
+// --------------------------------------- Issue Command ---------------------------------------
 
-	/* Update class variables according to command */
-	switch (cmd) {
-		/* These are just a few basic examples */
-		case END_RENDER:
-			this->endRender = true;
-			break;
-
-		case ROTATE_X:
-			this->rotateX = value;
-			break;
-
-		case ROTATE_Y:
-			this->rotateY = value;
-			break;
-
-		case ROTATE_Z:
-			this->rotateZ = value;
-			break;
-	}
+// Allows GUI to send commands to the VR thread (e.g., rotate or quit)
+void VRRenderThread::issueCommand(int cmd, double value) {
+    switch (cmd) {
+    case END_RENDER:
+        this->endRender = true;
+        break;
+    case ROTATE_X:
+        this->rotateX = value;
+        break;
+    case ROTATE_Y:
+        this->rotateY = value;
+        break;
+    case ROTATE_Z:
+        this->rotateZ = value;
+        break;
+    case TOGGLE_VISIBILITY:
+        // Toggle visibility for all actors
+        actors->InitTraversal();
+        vtkActor* actor = nullptr;
+        while ((actor = actors->GetNextActor())) {
+            bool visible = value > 0.5;
+            actor->SetVisibility(visible ? 1 : 0);
+        }
+        break;
+    }
 }
 
-/**
- * @brief This function runs in a separate thread.
- */
+// --------------------------------------- VR Render Thread Entry ---------------------------------------
+
+// Starts the VR render loop in a separate thread
 void VRRenderThread::run() {
-	/* You might want to edit the 3D model once VR has started, however VTK is not "thread safe". 
-	 * This means if you try to edit the VR model from the GUI thread while the VR thread is
-	 * running, the program could become corrupted and crash. The solution is to get the VR thread
-	 * to edit the model. Any decision to change the VR model will come fromthe user via the GUI thread, 
-	 * so there needs to be a mechanism to pass data from the GUi thread to the VR thread.
-	 */
+    vtkNew<vtkNamedColors> colors;
 
-	vtkNew<vtkNamedColors> colors;
+    std::array<unsigned char, 4> bkg{ {26, 51, 102, 255} };
+    colors->SetColor("BkgColor", bkg.data());
 
-	// Set the background color.
-	std::array<unsigned char, 4> bkg{ {26, 51, 102, 255} };
-	colors->SetColor("BkgColor", bkg.data());
-	
-	// The renderer generates the image
-	// which is then displayed on the render window.
-	// It can be thought of as a scene to which the actor is added
-	renderer = vtkOpenVRRenderer::New();	
-	
-	renderer->SetBackground(colors->GetColor3d("BkgColor").GetData());
-	
-	/* Loop through list of actors provided and add to scene */
-	vtkActor* a;
-	actors->InitTraversal();
-	while( (a = (vtkActor*)actors->GetNextActor() ) ) {
-		renderer->AddActor(a);
-	}
+    // Create renderer and apply background
+    renderer = vtkOpenVRRenderer::New();
+    renderer->SetBackground(colors->GetColor3d("BkgColor").GetData());
 
-	/* The render window is the actual GUI window
-	 * that appears on the computer screen
-	 */
-	window = vtkOpenVRRenderWindow::New();
+    // Add all actors to the renderer
+    vtkActor* a;
+    actors->InitTraversal();
+    while ((a = actors->GetNextActor())) {
+        renderer->AddActor(a);
+    }
 
-	window->Initialize();
-	window->AddRenderer(renderer);
-	
-	/* Create Open VR Camera */
-	camera = vtkOpenVRCamera::New();				
-	renderer->SetActiveCamera(camera);			
+    // Setup render window
+    window = vtkOpenVRRenderWindow::New();
+    window->Initialize();
+    window->AddRenderer(renderer);
 
-	/* The render window interactor captures mouse events
-	 * and will perform appropriate camera or actor manipulation
-	 * depending on the nature of the events.
-	 */
-	interactor = vtkOpenVRRenderWindowInteractor::New();
-	interactor->SetRenderWindow(window);
-	interactor->Initialize();
-	window->Render();
+    // Setup VR camera
+    camera = vtkOpenVRCamera::New();
+    renderer->SetActiveCamera(camera);
 
+    // Setup interactor
+    interactor = vtkOpenVRRenderWindowInteractor::New();
+    interactor->SetRenderWindow(window);
+    interactor->Initialize();
+    window->Render();
 
-	/* Now start the VR - we will implement the command loop manually
-	 * so it can be interrupted to make modifications to the actors
-	 * (i.e. to implement animation)
-	 */
-	endRender = false;
-	t_last = std::chrono::steady_clock::now();
+    // Start VR render loop
+    endRender = false;
+    t_last = std::chrono::steady_clock::now();
 
-	while (!interactor->GetDone() && !this->endRender) {
-		interactor->DoOneEvent(window, renderer);
+    while (!interactor->GetDone() && !this->endRender) {
+        interactor->DoOneEvent(window, renderer);
 
-		/* Check to see if enough time has elapsed since last update
-		 * This looks overcomplicated (and it is, C++ loves to make things unecessarily complicated!) but
-		 * is really just checking if more than 20ms have elaspsed since the last animation step. The
-		 * complications comes from the fact that numbers representing time on computers don't usually have
-		 * standard second/millisecond units. Because everything is a class in C++, the converion from
-		 * computer units to seconds/milliseconds ends up looking like what you see below.
-		 *
-		 * My choice of 20ms is arbitrary, if this value is too small the animation calculations could begin to
-		 * interfere with the interator processes and make the simulation unresponsive. If it is too large
-		 * the animations will be jerky. Play with the value to see what works best.
-		 */
-		if (std::chrono::duration_cast <std::chrono::milliseconds> (std::chrono::steady_clock::now() - t_last).count() > 20) {
+        // Check if 20ms have passed since last frame
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - t_last).count() > 20) {
 
-			/* Do things that might need doing ... */
-			vtkActorCollection* actorList = renderer->GetActors();
-			vtkActor* a;
+            // Rotate all actors on X axis
+            vtkActorCollection* actorList = renderer->GetActors();
+            actorList->InitTraversal();
+            while ((a = actorList->GetNextActor())) {
+                a->RotateX(rotateX);
+            }
 
-			/* X Rotation */
-			actorList->InitTraversal();
-			while ((a = (vtkActor*)actorList->GetNextActor())) {
-				a->RotateX(rotateX);
-			}
+            // Rotate all actors on Y axis
+            actorList->InitTraversal();
+            while ((a = actorList->GetNextActor())) {
+                a->RotateY(rotateY);
+            }
 
-			/* Y Rotation */
-			actorList->InitTraversal();
-			while ((a = (vtkActor*)actorList->GetNextActor())) {
-				a->RotateY(rotateY);
-			}
+            // Rotate all actors on Z axis
+            actorList->InitTraversal();
+            while ((a = actorList->GetNextActor())) {
+                a->RotateZ(rotateZ);
+            }
 
-			/* Z Rotation */
-			actorList->InitTraversal();
-			while ((a = (vtkActor*)actorList->GetNextActor())) {
-				a->RotateZ(rotateZ);
-			}
+            // Reset last update time
+            t_last = std::chrono::steady_clock::now();
+        }
+    }
+}
 
-			/* Remember time now */
-			t_last = std::chrono::steady_clock::now();
-		}
-	}
+// --------------------------------------- Clear All Actors ---------------------------------------
+
+// Clears queued actors (thread-safe)
+void VRRenderThread::clearAllActors() {
+    QMutexLocker locker(&mutex);
+    queuedActors.clear();
+}
+
+// --------------------------------------- Set Rotation ---------------------------------------
+
+// Sets new rotation values to apply to all actors
+void VRRenderThread::setRotation(double x, double y, double z) {
+    this->rotateX = x;
+    this->rotateY = y;
+    this->rotateZ = z;
 }

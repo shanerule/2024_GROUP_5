@@ -1,9 +1,17 @@
+// @file MainWindow.cpp
+//
+// EEEE2076 - Software Engineering & VR Project
+//
+// Main application window: handles STL loading, tree interaction, rendering, filters, skybox, and VR.
+
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "ModelPart.h"
 #include "Option_Dialog.h"
 #include "skyboxutils.h"
 #include "VRRenderThread.h"
+
+// --------------------------------------- Qt Includes ---------------------------------------
 
 #include <QVTKOpenGLNativeWidget.h>
 #include <QMessageBox>
@@ -17,6 +25,9 @@
 #include <QTimer>
 #include <QSlider>
 #include <QCheckBox>
+#include <QtConcurrent>
+
+// --------------------------------------- VTK Includes ---------------------------------------
 
 #include <vtkGenericOpenGLRenderWindow.h>
 #include <vtkRenderer.h>
@@ -25,14 +36,19 @@
 #include <vtkActor.h>
 #include <vtkCamera.h>
 #include <vtkProperty.h>
-#include <vtkGenericOpenGLRenderWindow.h>
-#include <vtkRenderer.h>
 #include <vtkTexture.h>
 #include <vtkJPEGReader.h>
 #include <vtkPNGReader.h>
 #include <vtkLight.h>
 #include <vtkImageReader2.h>
+#include <vtkClipDataSet.h>
+#include <vtkShrinkFilter.h>
+#include <vtkPlane.h>
+#include <vtkGeometryFilter.h>
 
+// --------------------------------------- Constructor & Setup ---------------------------------------
+
+// Constructs the MainWindow and initializes all UI, rendering, and signals
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -42,131 +58,100 @@ MainWindow::MainWindow(QWidget* parent)
 {
     ui->setupUi(this);
 
-    ui->horizontalSlider->setRange(0, 100);  
-    ui->horizontalSlider->setValue(50);      
+    // Setup sliders
+    ui->horizontalSlider->setRange(0, 100);
+    ui->horizontalSlider->setValue(50);
 
-
-    // Connect button signal to slot
+    // Connect UI buttons to actions
     connect(ui->pushButton, &QPushButton::clicked, this, &MainWindow::handleButton);
     connect(ui->treeView, &QTreeView::clicked, this, &MainWindow::handleTreeClicked);
     connect(ui->actionOpen_File, &QAction::triggered, this, &MainWindow::openFile);
     connect(ui->treeView, &QWidget::customContextMenuRequested, this, &MainWindow::showTreeContextMenu);
     connect(ui->deleteButton, &QPushButton::clicked, this, &MainWindow::deleteSelectedItem);
     connect(ui->toggleVR, &QPushButton::released, this, &MainWindow::handleStartVR);
-    // Load background image / skybox
     connect(ui->loadBackgroundButton, &QPushButton::clicked, this, &MainWindow::onLoadBackgroundClicked);
     connect(ui->loadSkyboxButton, &QPushButton::clicked, this, &MainWindow::onLoadSkyboxClicked);
-
-    // Connect status bar signal to status bar slot
     connect(this, &MainWindow::statusUpdateMessage, ui->statusbar, &QStatusBar::showMessage);
 
-    // Rotation system
+    // Rotation timer and slider
     connect(rotationTimer, &QTimer::timeout, this, &MainWindow::onAutoRotate);
     connect(ui->rotationSpeedSlider, &QSlider::valueChanged, this, &MainWindow::onRotationSpeedChanged);
-    rotationSpeed = 0.0;
-    rotationTimer->start(16); // ~60 FPS (16 ms)
+    rotationTimer->start(16); // ~60 FPS
 
-    // Light intensity slider
+    // Lighting intensity
     connect(ui->horizontalSlider, &QSlider::valueChanged, this, &MainWindow::onLightIntensityChanged);
 
-    // Clip/Shrink filter checkboxes
+    // Filter toggles
     connect(ui->checkBox_Clip, &QCheckBox::toggled, this, &MainWindow::on_checkBox_Clip_toggled);
     connect(ui->checkBox_Shrink, &QCheckBox::toggled, this, &MainWindow::on_checkBox_Shrink_toggled);
+    connect(ui->exitVRButton, &QPushButton::clicked, this, &MainWindow::onExitVRClicked);
 
-    // Create and initialize the ModelPartList
+    // Create model part list and link to tree view
     this->partList = new ModelPartList("PartsList");
-
-    // Link it to the TreeView in the GUI
     ui->treeView->setModel(this->partList);
     ui->treeView->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->treeView->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->treeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
-    // Link a render window with the Qt widget
+    // Setup VTK rendering
     renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
     ui->vtkWidget->setRenderWindow(renderWindow);
 
-    // Add a renderer
     renderer = vtkSmartPointer<vtkRenderer>::New();
     renderWindow->AddRenderer(renderer);
 
-    // Create an object and add to renderer (this will change later to display a CAD model)
-    // Will just copy and paste cylinder example from before
-    // This creates a polygonal cylinder model with eight circumferential facets
-    // (i.e, in practice an octagonal prism).
+    // Add a sample cylinder model
     vtkNew<vtkCylinderSource> cylinder;
     cylinder->SetResolution(8);
 
-    // The mapper is responsible for pushing the geometry into the graphics
-    // library. It may also do color mapping, if scalars or other attributes are defined.
     vtkNew<vtkPolyDataMapper> cylinderMapper;
     cylinderMapper->SetInputConnection(cylinder->GetOutputPort());
 
-    // The actor is a grouping mechanism: besides the geometry (mapper), it
-    // also has a property, transformation matrix, and/or texture map.
-    // Here we set its color and rotate it around the X and Y axes.
     vtkNew<vtkActor> cylinderActor;
     cylinderActor->SetMapper(cylinderMapper);
     cylinderActor->GetProperty()->SetColor(1.0, 0.0, 0.35);
     cylinderActor->RotateX(30.0);
     cylinderActor->RotateY(-45.0);
-
     renderer->AddActor(cylinderActor);
 
-    // Reset Camera (probably needs to go in its own function that is called whenever model is changed)
     renderer->ResetCamera();
     renderer->GetActiveCamera()->Azimuth(30);
     renderer->GetActiveCamera()->Elevation(30);
     renderer->ResetCameraClippingRange();
 
-    // Create a root item in tree (example child added)
-    ModelPart* rootItem = this->partList->getRootItem();
-    //QString name = QString("Model ").arg(1);
-    //QString visible("true");
-    //ModelPart* childItem = new ModelPart({ name, visible });
-    //rootItem->appendChild(childItem);
-
-    // Setup scene light
-    /*sceneLight = vtkSmartPointer<vtkLight>::New();
-    sceneLight->SetLightTypeToSceneLight();
-    sceneLight->SetPosition(5, 5, 15);
-    sceneLight->SetPositional(true);
-    sceneLight->SetConeAngle(15);
-    sceneLight->SetFocalPoint(0, 0, 0);
-    sceneLight->SetDiffuseColor(1, 1, 1);
-    sceneLight->SetAmbientColor(1, 1, 1);
-    sceneLight->SetSpecularColor(1, 1, 1);
-    sceneLight->SetIntensity(0.5);  // Initial intensity
-    renderer->AddLight(sceneLight);  // Add light after adding actors
-    */
-
+    // Setup default lighting
     sceneLight = vtkSmartPointer<vtkLight>::New();
     sceneLight->SetLightTypeToSceneLight();
-    sceneLight->SetPosition(5, 5, 15);   // Place light above scene
+    sceneLight->SetPosition(5, 5, 15);
     sceneLight->SetFocalPoint(0, 0, 0);
     sceneLight->SetDiffuseColor(1, 1, 1);
     sceneLight->SetAmbientColor(1, 1, 1);
     sceneLight->SetSpecularColor(1, 1, 1);
-    sceneLight->SetIntensity(0.5);       // Initial brightness
-    renderer->AddLight(sceneLight);      // Add light to renderer
+    sceneLight->SetIntensity(0.5);
+    renderer->AddLight(sceneLight);
 
+    // Initialize VR thread
+    vrThread = new VRRenderThread(this);
 }
 
+// Destructor: cleans up UI
 MainWindow::~MainWindow()
 {
     delete ui;
 }
 
+// --------------------------------------- UI Button Handlers ---------------------------------------
+
+// Handles generic button click (test)
 void MainWindow::handleButton()
 {
     QMessageBox msgBox;
     msgBox.setText("Add button was clicked");
     msgBox.exec();
-
-    // Emit signal to update status bar
     emit statusUpdateMessage(QString("Add button was clicked"), 0);
 }
 
+// Updates status bar when tree item clicked
 void MainWindow::handleTreeClicked()
 {
     QModelIndex index = ui->treeView->currentIndex();
@@ -179,39 +164,29 @@ void MainWindow::handleTreeClicked()
     }
 }
 
+// --------------------------------------- File Loading ---------------------------------------
+
+// Triggered from menu to open STL files
 void MainWindow::on_actionOpen_File_triggered()
 {
     emit statusUpdateMessage(QString("Open File action triggered"), 0);
 }
 
+// Opens STL files and adds them to the tree
 void MainWindow::openFile()
 {
-    // Open a file dialog to select multiple files
     QStringList fileNames = QFileDialog::getOpenFileNames(
-        this,
-        tr("Open File"),
-        QDir::homePath(),
-        tr("STL Files (*.stl);;All Files (*)")
-    );
+        this, tr("Open File"), QDir::homePath(), tr("STL Files (*.stl);;All Files (*)"));
 
-    // If files were selected, add them to the tree view
     if (!fileNames.isEmpty()) {
         QModelIndex index = ui->treeView->currentIndex();
-        ModelPart* selectedPart = nullptr;
+        ModelPart* selectedPart = index.isValid()
+            ? static_cast<ModelPart*>(index.internalPointer())
+            : partList->getRootItem();
 
-        // If no item is selected, add the new parts as children of the root item
-        if (!index.isValid()) {
-            selectedPart = partList->getRootItem();
-        }
-        else {
-            selectedPart = static_cast<ModelPart*>(index.internalPointer());
-        }
-
-        // Loop through each selected file and add them to the tree
         for (const QString& fileName : fileNames) {
             QString shortName = QFileInfo(fileName).fileName();
 
-            // Check for duplicates
             bool alreadyExists = false;
             int rows = partList->rowCount(QModelIndex());
             for (int i = 0; i < rows; ++i) {
@@ -225,39 +200,39 @@ void MainWindow::openFile()
 
             if (alreadyExists) {
                 QMessageBox::information(this, "Duplicate File", "The file \"" + shortName + "\" is already loaded.");
-                continue; // Skip adding this file
+                continue;
             }
 
-            // Add new ModelPart
             QList<QVariant> data = { shortName, "true" };
             QModelIndex newIndex = partList->appendChild(data);
-
             ModelPart* newPart = static_cast<ModelPart*>(newIndex.internalPointer());
             newPart->loadSTL(fileName);
-
-            updateRender();
         }
-    }
 
-    ui->treeView->expandAll();
+        updateRender();
+        ui->treeView->expandAll();
+    }
 }
 
+// --------------------------------------- Dialogs & Tree Context ---------------------------------------
+
+// Opens Option_Dialog from a secondary button
 void MainWindow::on_pushButton_2_clicked()
 {
     openOptionDialog();
 }
 
+// Opens context menu for tree item
 void MainWindow::showTreeContextMenu(const QPoint& pos)
 {
     QMenu contextMenu(this);
-
     QAction* itemOptions = new QAction("Item Options", this);
     connect(itemOptions, &QAction::triggered, this, &MainWindow::on_actionItemOptions_triggered);
-
     contextMenu.addAction(itemOptions);
     contextMenu.exec(ui->treeView->mapToGlobal(pos));
 }
 
+// Handles the Option_Dialog for item editing
 void MainWindow::on_actionItemOptions_triggered()
 {
     QModelIndex index = ui->treeView->currentIndex();
@@ -267,33 +242,26 @@ void MainWindow::on_actionItemOptions_triggered()
     if (!selectedPart) return;
 
     Option_Dialog dialog(this);
-    dialog.setModelPart(selectedPart);  // Pass the data into dialog
+    dialog.setModelPart(selectedPart);
+    connect(&dialog, &Option_Dialog::visibilityChanged, this, &MainWindow::onVisibilityChanged);
 
     if (dialog.exec() == QDialog::Accepted) {
-        // Get the updated data from the dialog
         QString name;
         int r, g, b;
         bool visible;
         dialog.getModelPartData(name, r, g, b, visible);
-
-        // Update the tree item
         selectedPart->setName(name);
         selectedPart->setColor(QColor(r, g, b));
         selectedPart->setVisible(visible);
 
-        // FORCE UI REFRESH
-        QAbstractItemModel* model = ui->treeView->model();
-        emit model->dataChanged(index, index, { Qt::DisplayRole, Qt::BackgroundRole });
-
+        emit ui->treeView->model()->dataChanged(index, index, { Qt::DisplayRole, Qt::BackgroundRole });
         ui->treeView->update();
-        ui->treeView->viewport()->update();
-
         renderWindow->Render();
-
         emit statusUpdateMessage("Updated: " + name, 0);
     }
 }
 
+// Shows the options dialog directly
 void MainWindow::openOptionDialog()
 {
     QModelIndex index = ui->treeView->currentIndex();
@@ -315,10 +283,18 @@ void MainWindow::openOptionDialog()
     }
 }
 
+// --------------------------------------- Rendering ---------------------------------------
+
+// Updates the scene with current model parts
 void MainWindow::updateRender()
 {
     renderer->RemoveAllViewProps();
 
+    // If VR is running, clear old actors
+    if (vrThread && vrThread->isRunning())
+        vrThread->clearAllActors();  // Must be implemented in VRRenderThread
+
+    // Loop through each top-level item and recursively render
     int rows = partList->rowCount();
     for (int i = 0; i < rows; ++i) {
         QModelIndex index = partList->index(i, 0, QModelIndex());
@@ -329,47 +305,42 @@ void MainWindow::updateRender()
     renderer->Render();
 }
 
+// Recursively updates render and VR actors from the tree
 void MainWindow::updateRenderFromTree(const QModelIndex& index)
 {
     if (!index.isValid()) return;
 
-    // 1. Standard on-screen rendering
     ModelPart* part = static_cast<ModelPart*>(index.internalPointer());
+    if (!part) return;
+
+    // Add on-screen actor if visible
     vtkSmartPointer<vtkActor> onscreen = part->getActor();
     if (onscreen && part->visible()) {
         renderer->AddActor(onscreen);
     }
 
-    // 2. Build a fresh actor for VR and queue it
-    if (vrThread && part->getSource() && part->visible()) {
-        // Create a new mapper linked to the original data source
-        vtkSmartPointer<vtkPolyDataMapper> vrMapper =
-            vtkSmartPointer<vtkPolyDataMapper>::New();
-        vrMapper->SetInputConnection(part->getSource()->GetOutputPort());
-
-        // Create a brand-new actor for VR
-        vtkSmartPointer<vtkActor> vrActor =
-            vtkSmartPointer<vtkActor>::New();
-        vrActor->SetMapper(vrMapper);
-
-        // Copy over any property changes (colour, opacity, etc.)
-        vrActor->SetProperty(onscreen->GetProperty());
-
-        // Queue up for the VR render thread
-        vrThread->addActorOffline(vrActor);
+    // Add VR actor if running
+    if (vrThread && part->visible()) {
+        vtkSmartPointer<vtkActor> vrActor = part->getVRActor();
+        if (vrActor)
+            vrThread->addActorOffline(vrActor);
     }
 
-    // Recurse
+    // Recurse into children
     if (!partList->hasChildren(index) ||
         (index.flags() & Qt::ItemNeverHasChildren)) {
         return;
     }
+
     int rows = partList->rowCount(index);
     for (int i = 0; i < rows; ++i) {
         updateRenderFromTree(partList->index(i, 0, index));
     }
 }
 
+// --------------------------------------- Tree Actions ---------------------------------------
+
+// Deletes selected items from the tree and renderer
 void MainWindow::deleteSelectedItem()
 {
     QItemSelectionModel* selectionModel = ui->treeView->selectionModel();
@@ -380,7 +351,6 @@ void MainWindow::deleteSelectedItem()
         return;
     }
 
-    // Collect names for confirmation message
     QStringList partNames;
     for (const QModelIndex& index : selectedIndexes) {
         ModelPart* part = static_cast<ModelPart*>(index.internalPointer());
@@ -389,13 +359,11 @@ void MainWindow::deleteSelectedItem()
     }
 
     QString message = "Are you sure you want to delete the following " +
-        QString::number(partNames.size()) + " items?\n\n" +
-        partNames.join("\n");
+        QString::number(partNames.size()) + " items?\n\n" + partNames.join("\n");
 
     if (QMessageBox::question(this, "Confirm Delete", message) != QMessageBox::Yes)
         return;
 
-    // Sort indexes in descending order before deletion
     std::sort(selectedIndexes.begin(), selectedIndexes.end(),
         [](const QModelIndex& a, const QModelIndex& b) {
             return a.row() > b.row();
@@ -409,16 +377,14 @@ void MainWindow::deleteSelectedItem()
     updateRender();
 }
 
+// --------------------------------------- Background & Skybox ---------------------------------------
+
+// Loads a static background image and applies it to the renderer
 void MainWindow::onLoadBackgroundClicked()
 {
-    QString fileName = QFileDialog::getOpenFileName(this,
-        tr("Open Background Image"), "",
-        tr("Images (*.png *.jpg *.jpeg)"));
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Open Background Image"), "", tr("Images (*.png *.jpg *.jpeg)"));
+    if (fileName.isEmpty()) return;
 
-    if (fileName.isEmpty())
-        return;
-
-    // Detect file type and read
     vtkSmartPointer<vtkImageReader2> reader;
     if (fileName.endsWith(".jpg", Qt::CaseInsensitive) || fileName.endsWith(".jpeg", Qt::CaseInsensitive)) {
         reader = vtkSmartPointer<vtkJPEGReader>::New();
@@ -427,7 +393,6 @@ void MainWindow::onLoadBackgroundClicked()
         reader = vtkSmartPointer<vtkPNGReader>::New();
     }
     else {
-        // Unsupported format
         return;
     }
 
@@ -437,26 +402,24 @@ void MainWindow::onLoadBackgroundClicked()
     vtkSmartPointer<vtkTexture> backgroundTexture = vtkSmartPointer<vtkTexture>::New();
     backgroundTexture->SetInputConnection(reader->GetOutputPort());
 
-    this->renderer->TexturedBackgroundOn();
-    this->renderer->SetBackgroundTexture(backgroundTexture);
-
-    // Refresh render window
-    this->renderWindow->Render();
+    renderer->TexturedBackgroundOn();
+    renderer->SetBackgroundTexture(backgroundTexture);
+    renderWindow->Render();
 }
 
+// Loads a skybox cubemap texture from a folder and applies it
 void MainWindow::onLoadSkyboxClicked()
 {
     QString dirPath = QFileDialog::getExistingDirectory(this, "Select Skybox Folder");
-    if (dirPath.isEmpty())
-        return;
+    if (dirPath.isEmpty()) return;
 
     std::vector<std::string> faceFilenames = {
-        (dirPath + "/px.png").toStdString(),   // +X
-        (dirPath + "/nx.png").toStdString(),   // -X
-        (dirPath + "/py.png").toStdString(),   // +Y
-        (dirPath + "/ny.png").toStdString(),   // -Y
-        (dirPath + "/pz.png").toStdString(),   // +Z
-        (dirPath + "/nz.png").toStdString()    // -Z
+        (dirPath + "/px.png").toStdString(),
+        (dirPath + "/nx.png").toStdString(),
+        (dirPath + "/py.png").toStdString(),
+        (dirPath + "/ny.png").toStdString(),
+        (dirPath + "/pz.png").toStdString(),
+        (dirPath + "/nz.png").toStdString()
     };
 
     auto cubemapTexture = LoadCubemapTexture(faceFilenames);
@@ -464,40 +427,43 @@ void MainWindow::onLoadSkyboxClicked()
     renderWindow->Render();
 }
 
-void MainWindow::onRotationSpeedChanged(int value)
+// --------------------------------------- Lighting & Rotation ---------------------------------------
+
+// Updates light intensity using slider value
+void MainWindow::onLightIntensityChanged(int value)
 {
-    // Map slider value (0 to 100) to a rotation speed (degrees per timer tick)
-    rotationSpeed = static_cast<double>(value) * 0.1; // adjust if needed
+    if (!sceneLight) return;
+
+    double intensity = static_cast<double>(value) / 100.0;
+    sceneLight->SetIntensity(intensity);
+    renderWindow->Render();
 }
 
-/*void MainWindow::onAutoRotate()
+// Updates rotation speed and optionally starts VR thread
+void MainWindow::onRotationSpeedChanged(int value)
 {
-    if (rotationSpeed == 0.0)
-        return;
+    rotationSpeed = static_cast<double>(value) * 0.1;
 
-    // Rotate the actor, not the camera!
-    QModelIndex index = ui->treeView->currentIndex();
-    if (!index.isValid())
-        return;
+    if (vrThread) {
+        if (rotationSpeed == 0.0) {
+            vrThread->setRotation(0.0, 0.0, 0.0);
+        }
+        else {
+            vrThread->setRotation(0.0, rotationSpeed, 0.0);
+            if (vrThread && vrThread->isRunning()) {
+                vrThread->setRotation(0.0, rotationSpeed, 0.0);
+            }
 
-    ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
-    if (!selectedPart)
-        return;
-
-    vtkSmartPointer<vtkActor> actor = selectedPart->getActor();
-    if (actor) {
-        actor->RotateY(rotationSpeed);
+        }
     }
+}
 
-    this->renderWindow->Render();
-}*/
-
+// Automatically rotates selected actors in the scene
 void MainWindow::onAutoRotate()
 {
     if (rotationSpeed == 0.0)
         return;
 
-    // Get all selected rows
     QItemSelectionModel* selectionModel = ui->treeView->selectionModel();
     QModelIndexList selectedIndexes = selectionModel->selectedRows();
 
@@ -509,7 +475,12 @@ void MainWindow::onAutoRotate()
 
         vtkSmartPointer<vtkActor> actor = part->getActor();
         if (actor) {
-            actor->RotateY(rotationSpeed);
+            actor->RotateY(rotationSpeed);  // Apply rotation
+        }
+
+        // Only call VR update if the thread exists and is running
+        if (vrThread && vrThread->isRunning()) {
+            updateRenderFromTree(index);
         }
     }
 
@@ -517,15 +488,9 @@ void MainWindow::onAutoRotate()
 }
 
 
-void MainWindow::onLightIntensityChanged(int value)
-{
-    if (!sceneLight) return;
+// --------------------------------------- Filter Toggles ---------------------------------------
 
-    double intensity = static_cast<double>(value) / 100.0;
-    sceneLight->SetIntensity(intensity);
-    renderWindow->Render();
-}
-
+// Applies/removes clip filter from selected model
 void MainWindow::on_checkBox_Clip_toggled(bool checked)
 {
     QModelIndex index = ui->treeView->currentIndex();
@@ -534,16 +499,16 @@ void MainWindow::on_checkBox_Clip_toggled(bool checked)
     ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
     if (!selectedPart) return;
 
-    if (checked) {
-        selectedPart->applyClipFilter();
-    }
-    else {
-        selectedPart->removeClipFilter();
-    }
+    double origin[3] = { 0.0, 0.0, 0.0 };
+    double normal[3] = { 0.0, -1.0, 0.0 };
+    selectedPart->applyClipFilter(checked, origin, normal);
 
-    refreshSelectedActor();
+    renderWindow->Render();
+    if (vrThread && vrThread->isRunning())
+        updateRenderFromTree(index);
 }
 
+// Applies/removes shrink filter from selected model
 void MainWindow::on_checkBox_Shrink_toggled(bool checked)
 {
     QModelIndex index = ui->treeView->currentIndex();
@@ -552,16 +517,51 @@ void MainWindow::on_checkBox_Shrink_toggled(bool checked)
     ModelPart* selectedPart = static_cast<ModelPart*>(index.internalPointer());
     if (!selectedPart) return;
 
-    if (checked) {
-        selectedPart->applyShrinkFilter();
-    }
-    else {
-        selectedPart->removeShrinkFilter();
-    }
+    selectedPart->applyShrinkFilter(checked, 0.8);
+    renderWindow->Render();
 
-    refreshSelectedActor();
+    if (vrThread && vrThread->isRunning())
+        updateRenderFromTree(index);
 }
 
+// --------------------------------------- VR Thread Management ---------------------------------------
+
+// Starts the VR rendering thread
+void MainWindow::handleStartVR()
+{
+    if (!vrThread->isRunning()) {
+        updateRenderFromTree(partList->index(0, 0, QModelIndex()));
+        vrThread->start();
+        emit statusUpdateMessage(QString("VR LOADING.."), 0);
+    }
+    else {
+        emit statusUpdateMessage(QString("VR already running"), 0);
+    }
+}
+
+// Gracefully stops the VR thread
+void MainWindow::onExitVRClicked()
+{
+    if (vrThread && vrThread->isRunning()) {
+        vrThread->issueCommand(VRRenderThread::END_RENDER, 0);
+        vrThread->wait();
+        delete vrThread;
+        vrThread = nullptr;
+    }
+}
+
+// Called when visibility checkbox in dialog is changed
+void MainWindow::onVisibilityChanged(bool visible)
+{
+    double visibilityValue = visible ? 1.0 : 0.0;
+    if (vrThread && vrThread->isRunning()) {
+        vrThread->issueCommand(VRRenderThread::TOGGLE_VISIBILITY, visibilityValue);
+    }
+}
+
+// --------------------------------------- Actor Refresh ---------------------------------------
+
+// Removes and re-adds selected actor to force rendering refresh
 void MainWindow::refreshSelectedActor()
 {
     QModelIndex index = ui->treeView->currentIndex();
@@ -575,43 +575,6 @@ void MainWindow::refreshSelectedActor()
 
     renderer->RemoveActor(actor);
     renderer->AddActor(actor);
-
     renderWindow->Render();
 }
-
-void MainWindow::handleStartVR() {
-    // Create and start the off-thread VR renderer
-    vrThread = new VRRenderThread(this);
-    // Populate it with all currently visible parts
-    updateRenderFromTree(partList->index(0, 0, QModelIndex()));
-    vrThread->start();
-    emit statusUpdateMessage(QString("VR LOADING.."), 0);
-}
-
-//void MainWindow::openFile() {
-// Open a file dialog to select a file
-// QString fileName = QFileDialog::getOpenFileName(
-//   this,
-//   tr("Open File"),
-//   QDir::homePath(),
-//  tr("STL Files (*.stl);;Text Files (*.txt);;All Files (*)")
-//   );
-
-/// If a file was selected, update the selected tree item name
-//  if (!fileName.isEmpty()) {
-//    QModelIndex index = ui->treeView->currentIndex();
-//    if (!index.isValid()) return;
-
-//    ModelPart *selectedPart = static_cast<ModelPart*>(index.internalPointer());
-//      if (!selectedPart) return;
-
-//     QString newName = QFileInfo(fileName).fileName();  // Extract filename only
-//     selectedPart->setName(newName);
-
-// Notify the model that data has changed
-//    ui->treeView->model()->dataChanged(index, index, {Qt::DisplayRole});
-//   emit statusUpdateMessage("Updated item name to " + newName, 0);
-//  }
-//}
-
 

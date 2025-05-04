@@ -10,9 +10,11 @@ find_package(VTK REQUIRED
     IOImage
     IOGeometry
     FiltersSources
+    FiltersGeometry
     GUISupportQt
     InteractionStyle
     RenderingOpenVR
+    FiltersModeling
 )
 
 set(CMAKE_AUTOUIC ON)
@@ -23,7 +25,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets OpenGLWidgets)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets OpenGLWidgets Concurrent)
 find_package( VTK REQUIRED )
 set(PROJECT_SOURCES
     main.cpp
@@ -63,6 +65,7 @@ target_link_libraries(VRproject PRIVATE
   Qt${QT_VERSION_MAJOR}::Widgets
    Qt${QT_VERSION_MAJOR}::Core 
   Qt${QT_VERSION_MAJOR}::OpenGLWidgets
+   Qt${QT_VERSION_MAJOR}::Concurrent
   VTK::CommonCore
   VTK::CommonColor
   VTK::RenderingCore
@@ -70,11 +73,13 @@ target_link_libraries(VRproject PRIVATE
   VTK::IOImage
   VTK::IOGeometry
   VTK::FiltersSources
+  VTK::FiltersGeometry
   VTK::GUISupportQt
   VTK::InteractionStyle
   VTK::RenderingOpenVR
   VTK::CommonCore
   VTK::CommonColor
+  VTK::FiltersModeling
 )
 
 # macOS/Windows bundle settings

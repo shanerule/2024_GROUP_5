@@ -1,146 +1,89 @@
-/**
-  *  @file ModelPartList.h
-  *
-  *  EEEE2076 - Software Engineering & VR Project
-  *
-  *  Template for model part list that will be used to create the treeview.
-  *
-  *  P Evans 2022
-  */
+// @file ModelPartList.h
+//
+// EEEE2076 - Software Engineering & VR Project
+//
+// Tree model wrapper for ModelPart objects, displayed in a QTreeView.
+//
+// P Evans 2022
 
 #ifndef VIEWER_MODELPARTLIST_H  
 #define VIEWER_MODELPARTLIST_H  
 
 #pragma once  
 
-#include "ModelPart.h"  
+// --------------------------------------- Includes ---------------------------------------
 
-#include <QAbstractItemModel>  
-#include <QModelIndex>  
-#include <QVariant>  
-#include <QString>  
-#include <QList>  
+#include "ModelPart.h"
 
-class ModelPart;
+#include <QAbstractItemModel>  // Base class for custom tree/table models
+#include <QModelIndex>         // Used to refer to specific cells
+#include <QVariant>            // Flexible container for different data types
+#include <QString>
+#include <QList>
+
+class ModelPart;  // Forward declaration
+
+// --------------------------------------- ModelPartList Class ---------------------------------------
 
 class ModelPartList : public QAbstractItemModel {
-    Q_OBJECT        /**< Qt meta-object tag (enables signals/slots, etc.) */
+    Q_OBJECT  // Enables signals/slots and Qt meta-object features
 
 public:
-    /**
-      * Constructor
-      * @param data   Unused string (could define column headers)
-      * @param parent Parent QObject for Qt hierarchy
-      */
+
+    // --------------------------------------- Constructor & Destructor ---------------------------------------
+
+    // Constructor: creates the model and root item
     ModelPartList(const QString& data, QObject* parent = nullptr);
 
-    /**
-      * Destructor
-      * Frees the root item allocated in constructor
-      */
+    // Destructor: frees memory allocated to root and children
     ~ModelPartList();
 
-    /**
-      * Return number of columns in the tree view
-      * @param parent Unused
-      * @return number of columns – e.g. "Part" and "Visible" = 2
-      */
+    // --------------------------------------- Overridden Qt Model Functions ---------------------------------------
+
+    // Returns the number of columns (e.g., "Part", "Visible")
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
 
-    /**
-      * Return the data for a given index and role
-      * @param index Model index (row + column)
-      * @param role  Qt role (DisplayRole, BackgroundRole, etc.)
-      * @return QVariant containing the data or empty if invalid/unsupported role
-      */
+    // Returns data to display in a given index and role
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
-    /**
-      * Return item flags for a given index
-      * @param index Model index
-      * @return Qt::ItemFlags (e.g. selectable, editable)
-      */
+    // Returns flags (e.g., editable/selectable) for a given index
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
-    /**
-      * Return header data for columns
-      * @param section    Column number
-      * @param orientation Horizontal/Vertical
-      * @param role       Qt role
-      * @return QVariant with header text or empty
-      */
+    // Returns header text for each column
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
 
-    /**
-      * Create a QModelIndex for the given row, column, under parent
-      * @param row    Row number
-      * @param column Column number
-      * @param parent Parent index (or root)
-      * @return QModelIndex for the requested item or invalid if out of range
-      */
+    // Returns a QModelIndex for a specific child item
     QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
 
-    /**
-      * Given a child index, return its parent index
-      * @param index Child index
-      * @return Parent index or invalid for root-level items
-      */
+    // Returns the parent index of a child (only used in nested models)
     QModelIndex parent(const QModelIndex& index) const override;
 
-    /**
-      * Return number of rows (children) under a given parent index
-      * @param parent QModelIndex of parent (invalid for root)
-      * @return Number of child items
-      */
+    // Returns number of child items for a given parent
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
 
-    /**
-      * Get pointer to the root item
-      * @return ModelPart* pointing to root
-      */
+    // --------------------------------------- Custom API ---------------------------------------
+
+    // Returns pointer to the root item
     ModelPart* getRootItem();
 
-    /**
-      * Append a new child to the root item
-      * @param data List of QVariant for new child's columns
-      * @return QModelIndex of the newly created item
-      */
+    // Appends a child item directly under the root
     QModelIndex appendChild(const QList<QVariant>& data);
 
-    /**
-      * Append a new child under a specified parent index
-      * @param parent QModelIndex under which to insert
-      * @param data   List of QVariant for new child's columns
-      * @return QModelIndex of the newly created item
-      */
+    // Appends a child under a specified parent (unused in flat model)
     QModelIndex appendChild(QModelIndex& parent, const QList<QVariant>& data);
 
-    /**
-      * Remove rows from the model (override)
-      * @param row    First row to remove
-      * @param count  Number of rows to remove
-      * @param parent Parent index
-      * @return true if removal succeeded
-      */
+    // Removes multiple child rows under a parent
     bool removeRows(int row, int count, const QModelIndex& parent = QModelIndex()) override;
 
-    /**
-      * Convenience to remove a single row
-      * @param row    Row to remove
-      * @param parent Parent index
-      * @return true if removal succeeded
-      */
+    // Removes a single row under a parent
     bool removeRow(int row, const QModelIndex& parent = QModelIndex());
 
-    /**
-      * Retrieve ModelPart* from a QModelIndex
-      * @param index QModelIndex of item
-      * @return Pointer to ModelPart or root if index invalid
-      */
+    // Converts a QModelIndex into its corresponding ModelPart*
     ModelPart* getItem(const QModelIndex& index) const;
 
 private:
-    ModelPart* rootItem;   /**< The hidden root item at base of tree */
+    // Root of the tree (not shown in UI)
+    ModelPart* rootItem;
 };
 
 #endif // VIEWER_MODELPARTLIST_H  
