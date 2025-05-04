@@ -1,7 +1,9 @@
-// @file VRRenderThread.cpp
-// EEEE2046 - Software Engineering & VR Project
-// Adds a VR rendering thread using VTK and OpenVR
-// P Evans 2022
+/**
+ * @file VRRenderThread.cpp
+ * @brief EEEE2046 - Software Engineering & VR Project
+ * Template to add VR rendering to your application
+ * Paul Evans 2022
+ */
 
 #include "VRRenderThread.h"
 
@@ -27,6 +29,10 @@
 
 // --------------------------------------- Constructor ---------------------------------------
 
+/**
+ * @brief Constructor: Initializes the actor collection and rotation values.
+ * @param parent The QObject parent.
+ */
 // Initializes the actor collection and rotation values
 VRRenderThread::VRRenderThread(QObject* parent) {
     actors = vtkActorCollection::New();
@@ -37,12 +43,19 @@ VRRenderThread::VRRenderThread(QObject* parent) {
 
 // --------------------------------------- Destructor ---------------------------------------
 
+/**
+ * @brief Destructor: Smart pointers handle cleanup.
+ */
 VRRenderThread::~VRRenderThread() {
     // Empty — smart pointers handle cleanup
 }
 
 // --------------------------------------- Add Actor Before Render Starts ---------------------------------------
 
+/**
+ * @brief Adds a VTK actor to the scene before the VR thread starts.
+ * @param actor The actor to add.
+ */
 // Adds an actor before the VR thread begins
 void VRRenderThread::addActorOffline(vtkActor* actor) {
     if (!this->isRunning()) {
@@ -58,6 +71,11 @@ void VRRenderThread::addActorOffline(vtkActor* actor) {
 
 // --------------------------------------- Issue Command ---------------------------------------
 
+/**
+ * @brief Issues a command to the VR thread (e.g., rotate, toggle visibility).
+ * @param cmd The command ID.
+ * @param value Command value (angle or visibility flag).
+ */
 // Allows GUI to send commands to the VR thread (e.g., rotate or quit)
 void VRRenderThread::issueCommand(int cmd, double value) {
     switch (cmd) {
@@ -86,7 +104,9 @@ void VRRenderThread::issueCommand(int cmd, double value) {
 }
 
 // --------------------------------------- VR Render Thread Entry ---------------------------------------
-
+/**
+ * @brief Main entry point for the VR rendering thread. Runs the render loop.
+ */
 // Starts the VR render loop in a separate thread
 void VRRenderThread::run() {
     vtkNew<vtkNamedColors> colors;
@@ -157,7 +177,9 @@ void VRRenderThread::run() {
 }
 
 // --------------------------------------- Clear All Actors ---------------------------------------
-
+/**
+ * @brief Clears all queued actors (thread-safe).
+ */
 // Clears queued actors (thread-safe)
 void VRRenderThread::clearAllActors() {
     QMutexLocker locker(&mutex);
@@ -165,7 +187,12 @@ void VRRenderThread::clearAllActors() {
 }
 
 // --------------------------------------- Set Rotation ---------------------------------------
-
+/**
+ * @brief Sets the per-frame rotation speeds along each axis.
+ * @param x Rotation speed along X.
+ * @param y Rotation speed along Y.
+ * @param z Rotation speed along Z.
+ */
 // Sets new rotation values to apply to all actors
 void VRRenderThread::setRotation(double x, double y, double z) {
     this->rotateX = x;

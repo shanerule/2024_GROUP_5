@@ -1,6 +1,11 @@
-// @file skyboxutils.cpp
-// EEEE2076 - Software Engineering & VR Project
-// Implements utility functions for applying a cubemap-based skybox in VTK
+/**
+ * @file skyboxutils.cpp
+ * @brief Implementation of skybox utility functions for VTK using cubemap textures.
+ *
+ * This file defines functions to load six images into a cubemap texture and
+ * render it as a skybox using VTK. These functions enable realistic background
+ * environments in a 3D scene using OpenGL-based textures and VTK rendering pipeline.
+ */
 
 #include "skyboxutils.h"
 
@@ -15,6 +20,15 @@
 #include <iostream>                     // For error logging
 
 // --------------------------------------- LoadCubemapTexture ---------------------------------------
+/**
+ * @brief Loads six images into a cubemap texture used for skybox rendering.
+ *
+ * The images must be ordered as: +X, -X, +Y, -Y, +Z, -Z (i.e., px, nx, py, ny, pz, nz).
+ * Each image is read, flipped along the Y-axis if needed, and assigned to the appropriate face.
+ *
+ * @param faceFilenames A vector of six image file paths.
+ * @return vtkSmartPointer<vtkOpenGLTexture> A cubemap texture with all six faces assigned.
+ */
 // Loads six images as cubemap texture faces (px, nx, py, ny, pz, nz)
 vtkSmartPointer<vtkOpenGLTexture> LoadCubemapTexture(const std::vector<std::string>& faceFilenames) {
 
@@ -52,6 +66,14 @@ vtkSmartPointer<vtkOpenGLTexture> LoadCubemapTexture(const std::vector<std::stri
 }
 
 // --------------------------------------- AddSkyboxToRenderer ---------------------------------------
+/**
+ * @brief Adds a skybox actor to a renderer using the provided cubemap texture.
+ *
+ * The skybox is added as a background element with cube projection and gamma correction enabled.
+ *
+ * @param renderer Pointer to the VTK renderer.
+ * @param cubemapTexture The cubemap texture returned by LoadCubemapTexture().
+ */
 // Adds a skybox actor to the renderer using the given cubemap texture
 void AddSkyboxToRenderer(vtkRenderer* renderer, vtkTexture* cubemapTexture) {
     auto skybox = vtkSmartPointer<vtkSkybox>::New();

@@ -4,6 +4,14 @@
 //
 // Main application window: handles STL loading, tree interaction, rendering, filters, skybox, and VR.
 
+/**
+ * @file mainwindow.cpp
+ * @brief Implements the MainWindow of the Qt/VTK application.
+ *
+ * Contains all slots and helper functions to drive the renderer, handle UI events,
+ * manage the model part tree, apply filters, load backgrounds/skyboxes, and control VR rendering.
+ */
+
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include "ModelPart.h"
@@ -47,6 +55,10 @@
 #include <vtkGeometryFilter.h>
 
 // --------------------------------------- Constructor & Setup ---------------------------------------
+/**
+ * @brief Constructs the MainWindow and initializes UI, rendering, and signal-slot connections.
+ * @param parent  Parent widget for Qt ownership (defaults to nullptr).
+ */
 
 // Constructs the MainWindow and initializes all UI, rendering, and signals
 MainWindow::MainWindow(QWidget* parent)
@@ -133,6 +145,9 @@ MainWindow::MainWindow(QWidget* parent)
     // Initialize VR thread
     vrThread = new VRRenderThread(this);
 }
+/**
+ * @brief Destructor: cleans up UI resources.
+ */
 
 // Destructor: cleans up UI
 MainWindow::~MainWindow()
@@ -141,6 +156,11 @@ MainWindow::~MainWindow()
 }
 
 // --------------------------------------- UI Button Handlers ---------------------------------------
+/**
+ * @brief Handles the generic test button click.
+ *
+ * Pops up a message box and updates the status bar.
+ */
 
 // Handles generic button click (test)
 void MainWindow::handleButton()
@@ -150,6 +170,12 @@ void MainWindow::handleButton()
     msgBox.exec();
     emit statusUpdateMessage(QString("Add button was clicked"), 0);
 }
+
+/**
+ * @brief Updates status bar when a tree item is clicked.
+ *
+ * @note Emits the selected item's text to the status bar.
+ */
 
 // Updates status bar when tree item clicked
 void MainWindow::handleTreeClicked()
@@ -165,12 +191,21 @@ void MainWindow::handleTreeClicked()
 }
 
 // --------------------------------------- File Loading ---------------------------------------
+/**
+ * @brief Slot connected to the “Open File” action in the menu.
+ *
+ * Emits a status message and leaves file selection to openFile().
+ */
 
 // Triggered from menu to open STL files
 void MainWindow::on_actionOpen_File_triggered()
 {
     emit statusUpdateMessage(QString("Open File action triggered"), 0);
 }
+
+/**
+ * @brief Opens one or more STL files and adds them to the model tree.
+ */
 
 // Opens STL files and adds them to the tree
 void MainWindow::openFile()
@@ -215,12 +250,20 @@ void MainWindow::openFile()
 }
 
 // --------------------------------------- Dialogs & Tree Context ---------------------------------------
+/**
+ * @brief Opens the options dialog via a secondary push button.
+ */
 
 // Opens Option_Dialog from a secondary button
 void MainWindow::on_pushButton_2_clicked()
 {
     openOptionDialog();
 }
+
+/**
+ * @brief Shows a custom context menu for the tree view.
+ * @param pos  Position where the menu should appear (in tree-view coordinates).
+ */
 
 // Opens context menu for tree item
 void MainWindow::showTreeContextMenu(const QPoint& pos)
@@ -231,6 +274,10 @@ void MainWindow::showTreeContextMenu(const QPoint& pos)
     contextMenu.addAction(itemOptions);
     contextMenu.exec(ui->treeView->mapToGlobal(pos));
 }
+
+/**
+ * @brief Handler for the “Item Options” action in the context menu.
+ */
 
 // Handles the Option_Dialog for item editing
 void MainWindow::on_actionItemOptions_triggered()
@@ -261,6 +308,12 @@ void MainWindow::on_actionItemOptions_triggered()
     }
 }
 
+/**
+ * @brief Opens the option dialog programmatically.
+ *
+ * If no item is selected, notifies user via status bar.
+ */
+
 // Shows the options dialog directly
 void MainWindow::openOptionDialog()
 {
@@ -284,6 +337,9 @@ void MainWindow::openOptionDialog()
 }
 
 // --------------------------------------- Rendering ---------------------------------------
+/**
+ * @brief Clears the scene and re-renders all visible parts.
+ */
 
 // Updates the scene with current model parts
 void MainWindow::updateRender()
@@ -304,6 +360,11 @@ void MainWindow::updateRender()
     renderer->ResetCamera();
     renderer->Render();
 }
+
+/**
+ * @brief Recursively adds on-screen and VR actors from the model tree.
+ * @param index  Tree index to process.
+ */
 
 // Recursively updates render and VR actors from the tree
 void MainWindow::updateRenderFromTree(const QModelIndex& index)
@@ -339,6 +400,9 @@ void MainWindow::updateRenderFromTree(const QModelIndex& index)
 }
 
 // --------------------------------------- Tree Actions ---------------------------------------
+/**
+ * @brief Deletes selected items from both the model tree and renderer.
+ */
 
 // Deletes selected items from the tree and renderer
 void MainWindow::deleteSelectedItem()
@@ -378,6 +442,9 @@ void MainWindow::deleteSelectedItem()
 }
 
 // --------------------------------------- Background & Skybox ---------------------------------------
+/**
+ * @brief Opens a file dialog to select a background image and applies it.
+ */
 
 // Loads a static background image and applies it to the renderer
 void MainWindow::onLoadBackgroundClicked()
@@ -407,6 +474,10 @@ void MainWindow::onLoadBackgroundClicked()
     renderWindow->Render();
 }
 
+/**
+ * @brief Opens a directory dialog to select a cubemap folder and applies a skybox.
+ */
+
 // Loads a skybox cubemap texture from a folder and applies it
 void MainWindow::onLoadSkyboxClicked()
 {
@@ -428,6 +499,10 @@ void MainWindow::onLoadSkyboxClicked()
 }
 
 // --------------------------------------- Lighting & Rotation ---------------------------------------
+/**
+ * @brief Adjusts the scene light intensity from slider value.
+ * @param value  Slider value [0–100].
+ */
 
 // Updates light intensity using slider value
 void MainWindow::onLightIntensityChanged(int value)
@@ -438,6 +513,11 @@ void MainWindow::onLightIntensityChanged(int value)
     sceneLight->SetIntensity(intensity);
     renderWindow->Render();
 }
+
+/**
+ * @brief Adjusts the rotation speed for auto-rotate and VR.
+ * @param value  Slider value (multiplied by 0.1 for degrees per tick).
+ */
 
 // Updates rotation speed and optionally starts VR thread
 void MainWindow::onRotationSpeedChanged(int value)
@@ -457,6 +537,10 @@ void MainWindow::onRotationSpeedChanged(int value)
         }
     }
 }
+
+/**
+ * @brief Called periodically (~60 FPS) to auto-rotate selected actors.
+ */
 
 // Automatically rotates selected actors in the scene
 void MainWindow::onAutoRotate()
@@ -489,6 +573,10 @@ void MainWindow::onAutoRotate()
 
 
 // --------------------------------------- Filter Toggles ---------------------------------------
+/**
+ * @brief Toggles a clipping filter on the selected model part.
+ * @param checked  True to apply clip, false to remove.
+ */
 
 // Applies/removes clip filter from selected model
 void MainWindow::on_checkBox_Clip_toggled(bool checked)
@@ -508,6 +596,11 @@ void MainWindow::on_checkBox_Clip_toggled(bool checked)
         updateRenderFromTree(index);
 }
 
+/**
+ * @brief Toggles a shrink filter on the selected model part.
+ * @param checked  True to apply shrink, false to remove.
+ */
+
 // Applies/removes shrink filter from selected model
 void MainWindow::on_checkBox_Shrink_toggled(bool checked)
 {
@@ -526,6 +619,10 @@ void MainWindow::on_checkBox_Shrink_toggled(bool checked)
 
 // --------------------------------------- VR Thread Management ---------------------------------------
 
+/**
+ * @brief Starts the VR rendering thread if not already running.
+ */
+
 // Starts the VR rendering thread
 void MainWindow::handleStartVR()
 {
@@ -539,6 +636,10 @@ void MainWindow::handleStartVR()
     }
 }
 
+/**
+ * @brief Gracefully stops and cleans up the VR rendering thread.
+ */
+
 // Gracefully stops the VR thread
 void MainWindow::onExitVRClicked()
 {
@@ -550,6 +651,11 @@ void MainWindow::onExitVRClicked()
     }
 }
 
+/**
+ * @brief Responds to visibility change signal from the option dialog.
+ * @param visible  True to show in VR, false to hide.
+ */
+
 // Called when visibility checkbox in dialog is changed
 void MainWindow::onVisibilityChanged(bool visible)
 {
@@ -560,6 +666,9 @@ void MainWindow::onVisibilityChanged(bool visible)
 }
 
 // --------------------------------------- Actor Refresh ---------------------------------------
+/**
+ * @brief Forces a refresh of the currently selected actor by re-adding it.
+ */
 
 // Removes and re-adds selected actor to force rendering refresh
 void MainWindow::refreshSelectedActor()

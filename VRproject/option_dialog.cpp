@@ -1,8 +1,7 @@
-// @file Option_Dialog.cpp
-//
-// EEEE2076 - Software Engineering & VR Project
-//
-// Dialog for editing a single ModelPart's name, color, and visibility.
+/**
+ * @file Option_Dialog.cpp
+ * @brief Implementation of Option_Dialog class for editing a ModelPart's name, color, and visibility.
+ */
 
 #include "Option_Dialog.h"       // Declaration of Option_Dialog class
 #include "ui_Option_Dialog.h"    // Auto-generated UI class for Option_Dialog
@@ -11,6 +10,10 @@
 
 // --------------------------------------- Constructor & Destructor ---------------------------------------
 
+/**
+ * @brief Constructs the dialog and connects signals for UI interaction.
+ * @param parent Optional parent widget.
+ */
 // Constructs the dialog and connects signals for UI interaction
 Option_Dialog::Option_Dialog(QWidget* parent)
     : QDialog(parent)
@@ -26,6 +29,9 @@ Option_Dialog::Option_Dialog(QWidget* parent)
     connect(ui->checkBox, &QCheckBox::toggled, this, &Option_Dialog::visibilityChanged);
 }
 
+/**
+ * @brief Destructor: cleans up the generated UI.
+ */
 // Destructor: cleans up the generated UI
 Option_Dialog::~Option_Dialog() {
     delete ui;
@@ -33,6 +39,10 @@ Option_Dialog::~Option_Dialog() {
 
 // --------------------------------------- Public Interface ---------------------------------------
 
+/**
+ * @brief Sets the current ModelPart and populates the dialog fields.
+ * @param part Pointer to the ModelPart to edit.
+ */
 // Sets the current ModelPart and populates the dialog with its values
 void Option_Dialog::setModelPart(ModelPart* part) {
     if (!part) return;
@@ -52,6 +62,10 @@ void Option_Dialog::setModelPart(ModelPart* part) {
     updateColorPreview();
 }
 
+/**
+ * @brief Returns the ModelPart currently being edited.
+ * @return Pointer to the ModelPart.
+ */
 // Returns the current associated ModelPart
 ModelPart* Option_Dialog::getModelPart() {
     return currentPart;
@@ -59,6 +73,9 @@ ModelPart* Option_Dialog::getModelPart() {
 
 // --------------------------------------- Slots ---------------------------------------
 
+/**
+ * @brief Opens a color picker dialog and updates the selected color preview.
+ */
 // Opens a QColorDialog and updates the preview with chosen color
 void Option_Dialog::on_colorButton_clicked()
 {
@@ -70,6 +87,9 @@ void Option_Dialog::on_colorButton_clicked()
     }
 }
 
+/**
+ * @brief Applies the dialog changes to the associated ModelPart and closes the dialog.
+ */
 // Applies the current form values to the ModelPart and accepts the dialog
 void Option_Dialog::accept() {
     if (currentPart) {
@@ -88,6 +108,9 @@ void Option_Dialog::accept() {
 
 // --------------------------------------- Utility ---------------------------------------
 
+/**
+ * @brief Updates the color preview widget with the selected color.
+ */
 // Updates the color preview box with the selected color
 void Option_Dialog::updateColorPreview() {
     QPalette palette = ui->colorPreview->palette();
@@ -97,6 +120,14 @@ void Option_Dialog::updateColorPreview() {
     ui->colorPreview->update();
 }
 
+/**
+ * @brief Extracts current values from the dialog UI into variables.
+ * @param name Output name.
+ * @param r Output red value (0–255).
+ * @param g Output green value (0–255).
+ * @param b Output blue value (0–255).
+ * @param Visible Output visibility flag.
+ */
 // Gets current values from the dialog into individual variables
 void Option_Dialog::getModelPartData(QString& name, int& r, int& g, int& b, bool& Visible) const {
     name = ui->lineEdit->text();

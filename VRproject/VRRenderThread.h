@@ -1,7 +1,9 @@
-// @file VRRenderThread.h
-// EEEE2046 - Software Engineering & VR Project
-// Adds OpenVR-based rendering support in a separate thread using Qt + VTK
-// P Evans 2022
+/**
+ * @file VRRenderThread.cpp
+ * @brief EEEE2046 - Software Engineering & VR Project
+ * Adds OpenVR-based rendering support in a separate thread using Qt + VTK
+ * Paul Evans 2022
+ */
 
 #ifndef VR_RENDER_THREAD_H
 #define VR_RENDER_THREAD_H
@@ -27,11 +29,17 @@
 #include <chrono>                            // Used for animation timing
 
 // --------------------------------------- VRRenderThread Class ---------------------------------------
-
+/**
+ * @class VRRenderThread
+ * @brief Runs a dedicated thread for rendering VTK scenes in VR using OpenVR.
+ */
 class VRRenderThread : public QThread {
     Q_OBJECT
 
 public:
+    /**
+    * @brief Enumeration of commands that can be issued to the VR thread.
+    */
     // Commands that can be sent to the VR thread
     enum {
         END_RENDER,         // Stop rendering
@@ -41,26 +49,56 @@ public:
         TOGGLE_VISIBILITY   // Toggle visibility on/off
     } Command;
 
+    /**
+     * @brief Constructor: initializes member variables.
+     * @param parent Optional QObject parent.
+     */
     // Constructor: initializes thread and renderer
     VRRenderThread(QObject* parent = nullptr);
 
+    /**
+     * @brief Destructor: cleans up resources.
+     */
     // Destructor: cleans up VTK resources
     ~VRRenderThread();
 
+    /**
+     * @brief Adds an actor to the scene before the VR thread starts.
+     * @param actor Pointer to the vtkActor to add.
+     */
     // Adds an actor before the VR interactor starts
     void addActorOffline(vtkActor* actor);
 
+    /**
+     * @brief Issues a command to the VR rendering thread.
+     * @param cmd Command enum (e.g., ROTATE_X, TOGGLE_VISIBILITY).
+     * @param value Value associated with the command.
+     */
     // Issues a command to the VR thread (thread-safe)
     void issueCommand(int cmd, double value);
 
+    /**
+     * @brief Sets the rotation speed per update on each axis.
+     * @param x Degrees per update around X.
+     * @param y Degrees per update around Y.
+     * @param z Degrees per update around Z.
+     */
     // Sets rotation speed (degrees per update) on each axis
     void setRotation(double x, double y, double z);
 
+    
 public slots:
+    /**
+     * @brief Clears all queued actors (thread-safe).
+     */
     // Removes all actors from the VR renderer
     void clearAllActors();
 
 protected:
+    /**
+     * @brief Main entry point for the VR rendering thread.
+     *        Initializes and runs the OpenVR event loop.
+     */
     // Entry point for the VR rendering thread
     void run() override;
 
