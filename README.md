@@ -39,7 +39,7 @@ Features:
 Technologies Used:
 -
   - Languages: C++
-  - Libraries: Qt 6.6, VTK 9.2, OpenVR
+  - Libraries: Qt 6.8.2, VTK 9.4.2, OpenVR
   - Tools: CMake, Visual Studio 2022, GitHub, NSIS
     
 Learning Outcomes:
