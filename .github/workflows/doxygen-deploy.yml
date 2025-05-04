@@ -9,19 +9,19 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+
     - name: Install doxygen
       run: sudo apt-get install -y doxygen
 
-    #Run Doxygen on vr folder
+    # Run Doxygen on vr folder
     - name: Run Doxygen
-      working-directory: ${{github.workspace}}/VRproject
+      working-directory: ${{ github.workspace }}/VRproject
       run: doxygen
-    
-    #Deploy html output from Doxygen to gh-pages branch
+
+    # Deploy html output from Doxygen to gh-pages branch
     - name: Deploy
-      uses: JamesIves/github-pages-deploy-action@v4.2.5
+      uses: JamesIves/github-pages-deploy-action@v4
       with:
-        # The branch the action should deploy to.
         branch: gh-pages
-        # The folder the action should deploy.
-        folder: ${{github.workspace}}/VRproject/html
+        folder: ${{ github.workspace }}/VRproject/html
+        token: ${{ secrets.GITHUB_TOKEN }}  # <- FIXED HERE
