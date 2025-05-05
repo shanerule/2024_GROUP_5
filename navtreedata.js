@@ -25,8 +25,20 @@
 var NAVTREE =
 [
   [ "VR Project", "index.html", [
-    [ "Project VR", "index.html", null ],
-    [ "mainpage", "md_mainpage.html", null ],
+    [ "Project VR", "md_mainpage.html", [
+      [ "Group Members (GROUP 5)", "md_mainpage.html#autotoc_md1", null ],
+      [ "Overview", "md_mainpage.html#autotoc_md3", null ],
+      [ "Objectives", "md_mainpage.html#autotoc_md5", null ],
+      [ "Features", "md_mainpage.html#autotoc_md7", [
+        [ "Qt GUI", "md_mainpage.html#autotoc_md8", null ],
+        [ "VTK Rendering", "md_mainpage.html#autotoc_md9", null ],
+        [ "VR Support", "md_mainpage.html#autotoc_md10", null ],
+        [ "Deployment", "md_mainpage.html#autotoc_md11", null ]
+      ] ],
+      [ "Technologies", "md_mainpage.html#autotoc_md13", null ],
+      [ "Learning Outcomes", "md_mainpage.html#autotoc_md15", null ],
+      [ "Conclusion", "md_mainpage.html#autotoc_md17", null ]
+    ] ],
     [ "Classes", "annotated.html", [
       [ "Class List", "annotated.html", "annotated_dup" ],
       [ "Class Index", "classes.html", null ],
