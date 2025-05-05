@@ -1,4 +1,4 @@
-/*! \mainpage Project VR
+# Project VR
 
 ## Group Members (GROUP 5)
 - Sorawis Pruckwattananon
@@ -61,5 +61,3 @@ Enhanced skills in cross-platform GUI dev, 3D rendering, VR architecture, Git wo
 ## Conclusion
 
 The final application enables effective inspection and visualization of detailed CAD models, ready for future extensions like simulation or remote collaboration.
-
-*/
