@@ -1,8 +1,8 @@
 var searchData=
 [
-  ['visibilitychanged_0',['visibilityChanged',['../classOption__Dialog.html#af933c997d96a002a250e7ac719e80562',1,'Option_Dialog']]],
-  ['visible_1',['visible',['../classModelPart.html#aa37200ef9b7eed6b970fef1b08234f3a',1,'ModelPart']]],
-  ['vr_2',['Project VR',['../index.html',1,'']]],
-  ['vrrenderthread_3',['vrrenderthread',['../classVRRenderThread.html',1,'VRRenderThread'],['../classVRRenderThread.html#a35976e55f6655840aa217aa8a066f196',1,'VRRenderThread::VRRenderThread()']]],
-  ['vrrenderthread_2ecpp_4',['VRRenderThread.cpp',['../VRRenderThread_8cpp.html',1,'']]]
+  ['refreshselectedactor_0',['refreshSelectedActor',['../classMainWindow.html#ac5e638224fb15ee0ec2235eae943ae7e',1,'MainWindow']]],
+  ['removechild_1',['removeChild',['../classModelPart.html#ac7c34fdc872e698650322446d2366dde',1,'ModelPart']]],
+  ['rendering_2',['VTK Rendering',['../index.html#autotoc_md8',1,'']]],
+  ['row_3',['row',['../classModelPart.html#a05bc0dd06a3658d9a2c46fa717dec910',1,'ModelPart']]],
+  ['run_4',['run',['../classVRRenderThread.html#af5bbbaf8625fc42278476a43bf018661',1,'VRRenderThread']]]
 ];
