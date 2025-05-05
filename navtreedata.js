@@ -25,6 +25,7 @@
 var NAVTREE =
 [
   [ "VR Project", "index.html", [
+    [ "Project VR", "index.html", null ],
     [ "mainpage", "md_mainpage.html", null ],
     [ "Classes", "annotated.html", [
       [ "Class List", "annotated.html", "annotated_dup" ],
