@@ -63,7 +63,7 @@ void VRRenderThread::addActorOffline(vtkActor* actor) {
 
         // Apply transform to place model in viewable position
         actor->RotateX(-90);
-        actor->AddPosition(-ac[0] + 0, -ac[1] - 100, -ac[2] - 200);
+        actor->AddPosition(-ac[0]+0, -ac[1]+0, -ac[2]+0);
 
         actors->AddItem(actor);
     }
